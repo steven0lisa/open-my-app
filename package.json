@@ -1,8 +1,16 @@
 {
   "name": "open-my-app",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
+    {
+      "version": "1.2.0",
+      "date": "2026-10-21",
+      "changes": [
+        "New `t <name>` and `o <name>` commands: open a matching folder in Terminal, or a file/folder in Finder",
+        "Spotlight-backed file search under the home directory, debounced input, capped at 5 results, paths shortened with ~"
+      ]
+    },
     {
       "version": "1.1.0",
       "date": "2026-10-21",

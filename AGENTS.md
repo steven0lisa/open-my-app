@@ -37,6 +37,7 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
 | `UI/` | 界面 | `LauncherView` / `LauncherModel`（搜索框 + 结果列表）、`SettingsWindow`（含快捷键录制 `HotkeyRecorderButton`）、`VisualEffectBackground` |
 | `Hotkey/` | 全局快捷键 | `HotkeyManager`（Carbon RegisterEventHotKey，无需辅助功能权限）、`HotkeyDisplay`（keyCode+掩码 ↔ "⌥Space" 展示互转） |
 | `Update/` | 检查更新与自动安装 | `UpdateChecker`（GitHub Release 查询、DMG 下载、挂载安装、重启） |
+| `Search/` 补充 | 文件命令搜索 | `FileSearchService`（NSMetadataQuery 封装，t/o 命令） |
 | `Utils/` | 偏好与使用频次 | `Preferences`（UserDefaults 封装，使用频次带内存缓存） |
 
 ## 关键设计
@@ -46,6 +47,7 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
 - 系统设置面板通过 `x-apple.systempreferences:<扩展锚点>` 打开（macOS 13+），锚点清单在 `SystemSettingsCatalog`。
 - 中文搜索：应用名经 `kCFStringTransformMandarinLatin` + 去声调得到全拼与首字母，配合原名 / 英文名打分（前缀 > 包含 > 子序列），再叠加使用频次加权。系统语言非中文时，第三方应用读 bundle 内 `zh_CN.lproj/InfoPlist.strings` 强制取中文名；**系统应用资源在 dyld 共享缓存中读不到**，用 `AppIndexer.zhNameOverrides` 静态对照表兜底（新增系统应用支持不了拼音时，先查这张表）。
 - 索引新鲜度双通道：面板每次显示时后台重扫（`LauncherModel.prepare()`，60s 保鲜期内跳过），`AppDirectoryWatcher` 用 FSEvents 监听应用目录（只监听启动时已存在的目录），去抖 1.5s 后 `force` 重扫——面板隐藏时索引也会更新。
+- `t <关键字>` / `o <关键字>` 命令：Spotlight 元数据搜索 HOME 下的目录 / 文件，回车用 Terminal 打开目录、用 Finder 打开（文件则定位选中）。实现要点（实测踩过，勿回退）：结果主要经 `NSMetadataQueryGatheringProgress` 通知携带，`NSMetadataQueryDidUpdate` 只在 gathering 完成后索引变化时触发（且真名带 "Did"，手写 raw string 永远不触发）；`kMDItemPath` 在谓词中不受支持（静默忽略），Library 排除只能在 collect 内存侧做；没有结果数上限 API，limit 靠 collect 截断 + 攒满即 stop；输入侧 250ms 防抖，代次计数丢弃过期回调；范围限定 HOME 规避 TCC 弹窗。
 - 界面双语（en / zh-CN）：开发区域为 en，key 即英文文案，`Resources/zh-CN.lproj/Localizable.strings` 存中文对照；新增 UI 字符串必须走 `NSLocalizedString` 并补中文条目。应用的搜索数据（中文名对照）与 UI 语言无关，始终强制取中文名做拼音匹配。
 - 检查更新双通道：api.github.com 优先（tag + asset 直链），403 / 共享出口 IP 限流时回退到 `github.com/.../releases/latest` 的 302 重定向提取 tag、按 `releases/download/<tag>/OpenMyApp-<ver>.dmg` 命名规律推导直链；安装 = hdiutil 挂载到临时目录 → 替换 /Applications → `open -n` 延迟重启。
 - 全局快捷键可在设置页自定义：偏好存 keyCode + Carbon 修饰键掩码（`Preferences.hotkeyKeyCode/hotkeyCarbonMask`），`HotkeyRecorderButton` 录制（要求 ⌘/⌥/⌃ 至少一个），变更经 `SettingsWindowController.onPreferenceChanged` 触发 `HotkeyManager.reRegister()` 与托盘刷新。

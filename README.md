@@ -17,6 +17,7 @@ A Spotlight-style minimalist app launcher for macOS: hit ⌥Space to summon a fl
 - **Automatic app discovery**: FSEvents watches application folders, so newly installed apps get indexed without a restart
 - **Extremely low resource usage**: 0% CPU at idle (no timers, no polling; event monitors are mounted only while the panel is visible), ~29MB physical memory, <0.1ms per search
 - **Usage-based ranking**: frequently launched apps float to the top
+- **Terminal & Finder commands**: type `t <name>` to open a matching folder in Terminal, `o <name>` to open a file or folder in Finder (Spotlight-backed, home directory, top 5 hits, debounced)
 - **Bilingual UI**: English and 简体中文, follows the system language
 - **In-app updates**: Settings → Check for Updates downloads and installs new releases automatically
 - **Launch at login**: toggle in Settings (based on SMAppService)

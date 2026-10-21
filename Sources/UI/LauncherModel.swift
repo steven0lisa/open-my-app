@@ -7,7 +7,7 @@ final class LauncherModel: ObservableObject {
     @Published var focusToken = 0
     @Published var query: String = "" {
         didSet {
-            if query != oldValue { refresh() }
+            if query != oldValue { scheduleRefresh() }
         }
     }
     @Published private(set) var results: [SearchResult] = []
@@ -17,6 +17,11 @@ final class LauncherModel: ObservableObject {
     var onOpenSettings: (() -> Void)?
 
     private let engine = SearchEngine()
+    private let fileSearch = FileSearchService()
+    /// `t ` / `o ` 命令搜索的防抖（250ms 内连续按键只发一次 Spotlight 查询）
+    private var commandWorkItem: DispatchWorkItem?
+    /// 命令搜索代次：过期回调直接丢弃
+    private var commandGeneration = 0
 
     /// 面板每次显示时调用：重扫应用目录 + 刷新焦点
     func prepare() {
@@ -32,10 +37,104 @@ final class LauncherModel: ObservableObject {
         }
     }
 
+    /// 输入变化入口：命令查询防抖后刷新；普通应用搜索立即刷新
+    func scheduleRefresh() {
+        commandWorkItem?.cancel()
+        let command = Self.parseCommand(query)
+        if command != nil {
+            fileSearch.cancel()
+            results = []
+            selectedID = nil
+            let work = DispatchWorkItem { [weak self] in self?.refresh() }
+            commandWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+        } else {
+            refresh()
+        }
+    }
+
+    /// `t <关键字>` → Terminal 打开目录；`o <关键字>` → Finder 打开目录/文件
+    static func parseCommand(_ raw: String) -> (mode: CommandMode, keyword: String)? {
+        let trimmed = raw.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("t ") {
+            return (.terminal, trimmed.dropFirst(2).trimmingCharacters(in: .whitespaces))
+        }
+        if trimmed.hasPrefix("o ") {
+            return (.finder, trimmed.dropFirst(2).trimmingCharacters(in: .whitespaces))
+        }
+        return nil
+    }
+
+    enum CommandMode {
+        case terminal
+        case finder
+    }
+
     func refresh() {
+        if let command = Self.parseCommand(query) {
+            runCommand(command)
+            return
+        }
+        fileSearch.cancel()
         results = engine.search(query)
         if results.contains(where: { $0.id == selectedID }) { return }
         selectedID = results.first?.id
+    }
+
+    private func runCommand(_ command: (mode: CommandMode, keyword: String)) {
+        guard !command.keyword.isEmpty else {
+            results = []
+            selectedID = nil
+            return
+        }
+        commandGeneration += 1
+        let generation = commandGeneration
+        fileSearch.search(
+            keyword: command.keyword,
+            directoriesOnly: command.mode == .terminal,
+            limit: 5
+        ) { [weak self] hits in
+            guard let self, self.commandGeneration == generation else { return }
+            self.results = hits.map { Self.makeCommandResult(mode: command.mode, hit: $0) }
+            self.selectedID = self.results.first?.id
+        }
+    }
+
+    private static func makeCommandResult(mode: CommandMode, hit: FileSearchService.Hit) -> SearchResult {
+        let displayPath = tildePath(hit.path)
+        switch mode {
+        case .terminal:
+            return SearchResult(
+                id: "terminal:\(hit.path)",
+                title: String(format: NSLocalizedString("Open in Terminal: %@", comment: "t command"), displayPath),
+                alias: "",
+                kind: .terminal,
+                appPath: nil,
+                settingAnchor: nil,
+                symbolName: nil,
+                openPath: hit.path
+            )
+        case .finder:
+            return SearchResult(
+                id: "finder:\(hit.path)",
+                title: String(format: NSLocalizedString("Open in Finder: %@", comment: "o command"), displayPath),
+                alias: "",
+                kind: .finder,
+                appPath: nil,
+                settingAnchor: nil,
+                symbolName: nil,
+                openPath: hit.path
+            )
+        }
+    }
+
+    /// /Users/xxx → ~（缩短显示长度）
+    static func tildePath(_ path: String) -> String {
+        let home = NSHomeDirectory()
+        if path.hasPrefix(home) {
+            return "~" + path.dropFirst(home.count)
+        }
+        return path
     }
 
     func moveSelection(_ delta: Int) {
@@ -59,6 +158,8 @@ final class LauncherModel: ObservableObject {
 
     /// Esc 关闭时清空状态，下次打开是干净的面板
     func reset() {
+        commandWorkItem?.cancel()
+        fileSearch.cancel()
         query = ""
         selectedID = nil
     }

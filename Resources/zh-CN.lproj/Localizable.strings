@@ -8,6 +8,10 @@
 "App" = "应用程序";
 "System Setting" = "系统设置";
 
+/* 命令模式（t / o 前缀） */
+"Open in Terminal: %@" = "使用 Terminal 打开 %@";
+"Open in Finder: %@" = "使用 Finder 打开 %@";
+
 /* StatusBarController */
 "Open Search Panel (%@)" = "打开搜索框（%@）";
 "Settings…" = "设置…";

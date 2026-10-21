@@ -85,7 +85,8 @@ final class SearchEngine {
             kind: .application,
             appPath: app.path,
             settingAnchor: nil,
-            symbolName: nil
+            symbolName: nil,
+            openPath: nil
         )
         let zhPinyin = app.chineseName.flatMap { Pinyin.info(for: $0) }
         let displayNamePinyin = Pinyin.info(for: app.name)
@@ -110,7 +111,8 @@ final class SearchEngine {
             kind: .systemSetting,
             appPath: nil,
             settingAnchor: setting.anchor,
-            symbolName: setting.symbolName
+            symbolName: setting.symbolName,
+            openPath: nil
         )
         let pinyin = Pinyin.info(for: setting.zhName)
         return SearchItem(

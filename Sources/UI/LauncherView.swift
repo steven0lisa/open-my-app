@@ -168,6 +168,10 @@ private struct ResultRow: View {
                 systemSymbolName: result.symbolName ?? "gearshape.fill",
                 accessibilityDescription: result.title
             )
+        case .terminal:
+            return NSWorkspace.shared.icon(forFile: "/System/Applications/Utilities/Terminal.app")
+        case .finder:
+            return NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
         }
     }
 }

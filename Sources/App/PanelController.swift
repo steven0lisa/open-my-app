@@ -215,6 +215,28 @@ final class PanelController: NSObject, NSWindowDelegate {
                 SystemSettingsCatalog.open(anchor: anchor)
                 Preferences.recordUsage(for: result.id)
             }
+        case .terminal:
+            if let path = result.openPath {
+                // open -a Terminal <目录>：新开一个以该目录为工作路径的终端窗口
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                process.arguments = ["-a", "Terminal", path]
+                try? process.run()
+                Preferences.recordUsage(for: result.id)
+            }
+        case .finder:
+            if let path = result.openPath {
+                let url = URL(fileURLWithPath: path)
+                var isDirectory: ObjCBool = false
+                FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+                if isDirectory.boolValue {
+                    NSWorkspace.shared.open(url)
+                } else {
+                    // 文件在 Finder 中定位并选中
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                }
+                Preferences.recordUsage(for: result.id)
+            }
         }
         hidePanel()
     }
