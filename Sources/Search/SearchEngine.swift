@@ -21,18 +21,25 @@ final class SearchEngine {
     private var appItems: [SearchItem] = []
     private let settingItems: [SearchItem]
     private let maxResults = 9
+    /// 扫描结果保鲜期：期内重扫直接跳过（目录变化由 FSEvents 强制触发）
+    private static let freshInterval: TimeInterval = 60
+    private var lastScanAt: Date?
 
     init() {
         settingItems = SystemSettingsCatalog.items.map(Self.makeItem)
     }
 
-    /// 后台重新扫描应用目录（应用安装/删除后保持新鲜）
+    /// 后台重新扫描应用目录；非强制时保鲜期内直接跳过（唤醒面板零工作）
     @discardableResult
-    func rescanApps() async -> Int {
-        let scanned = await Task.detached(priority: .userInitiated) {
+    func rescanApps(force: Bool = false) async -> Int {
+        if !force, let lastScanAt, Date().timeIntervalSince(lastScanAt) < Self.freshInterval {
+            return appItems.count
+        }
+        let scanned = await Task.detached(priority: .utility) {
             AppIndexer.scan()
         }.value
         appItems = scanned.map(Self.makeItem)
+        lastScanAt = Date()
         NSLog("[OpenMyApp] 应用索引已刷新: \(scanned.count) 个应用")
         return scanned.count
     }
@@ -41,9 +48,21 @@ final class SearchEngine {
         let query = rawQuery.trimmingCharacters(in: .whitespaces).lowercased()
         guard !query.isEmpty else { return [] }
 
+        // 查询级预计算：ASCII 判定与字节序列每次搜索只做一次
+        // （放在 isSubsequence 内做的话，每条目每次调用都要逐字符迭代一遍）
+        let queryBytes = Array(query.utf8)
+        let asciiQuery = query.allSatisfy(\.isASCII)
+
+        // 不做数组拼接，避免每次按键的分配
         var scored: [(score: Int, result: SearchResult)] = []
-        for item in appItems + settingItems {
-            if let score = Self.score(item: item, query: query) {
+        scored.reserveCapacity(appItems.count + settingItems.count)
+        for item in appItems {
+            if let score = Self.score(item: item, query: query, queryBytes: queryBytes, asciiQuery: asciiQuery) {
+                scored.append((score, item.result))
+            }
+        }
+        for item in settingItems {
+            if let score = Self.score(item: item, query: query, queryBytes: queryBytes, asciiQuery: asciiQuery) {
                 scored.append((score, item.result))
             }
         }
@@ -64,9 +83,9 @@ final class SearchEngine {
             title: title,
             alias: app.englishName,
             kind: .application,
-            icon: app.icon,
             appPath: app.path,
-            settingAnchor: nil
+            settingAnchor: nil,
+            symbolName: nil
         )
         let zhPinyin = app.chineseName.flatMap { Pinyin.info(for: $0) }
         let displayNamePinyin = Pinyin.info(for: app.name)
@@ -89,9 +108,9 @@ final class SearchEngine {
             title: setting.zhName,
             alias: setting.enName,
             kind: .systemSetting,
-            icon: symbolIcon(for: setting),
             appPath: nil,
-            settingAnchor: setting.anchor
+            settingAnchor: setting.anchor,
+            symbolName: setting.symbolName
         )
         let pinyin = Pinyin.info(for: setting.zhName)
         return SearchItem(
@@ -111,16 +130,10 @@ final class SearchEngine {
         text.lowercased().filter { $0.isLetter || $0.isNumber }
     }
 
-    private static func symbolIcon(for setting: SettingsItem) -> NSImage {
-        NSImage(systemSymbolName: setting.symbolName, accessibilityDescription: setting.zhName)
-            ?? NSImage(systemSymbolName: "gearshape.fill", accessibilityDescription: setting.zhName)
-            ?? NSImage()
-    }
-
     // MARK: - 打分
 
     /// 返回 nil 表示不匹配；分数越高越靠前
-    static func score(item: SearchItem, query query: String) -> Int? {
+    static func score(item: SearchItem, query query: String, queryBytes: [UInt8], asciiQuery: Bool) -> Int? {
         var best = -1
         func consider(_ value: Int) {
             if value > best { best = value }
@@ -139,21 +152,32 @@ final class SearchEngine {
         // 中文名（zhLower / zhCompact）：与别名同档打分
         if item.zhLower.hasPrefix(query) { consider(1700) }
         if item.zhCompact.hasPrefix(query) { consider(1550) }
-        if item.zhLower.contains(query) { consider(1100) }
-        if item.zhCompact.contains(query) { consider(1050) }
-        if isSubsequence(query, in: item.zhLower) || isSubsequence(query, in: item.zhCompact) { consider(750) }
+        if bytesContain(item.zhLower, query) { consider(1100) }
+        if bytesContain(item.zhCompact, query) { consider(1050) }
+        if asciiQuery {
+            if isSubsequence(queryBytes, in: item.zhLower) || isSubsequence(queryBytes, in: item.zhCompact) { consider(750) }
+        } else {
+            if isSubsequenceCharacters(query, in: item.zhLower) || isSubsequenceCharacters(query, in: item.zhCompact) { consider(750) }
+        }
 
-        // 包含
-        if item.nameLower.contains(query) { consider(1200) }
-        if item.nameCompact.contains(query) { consider(1150) }
-        if item.aliasLower.contains(query) { consider(1100) }
-        if item.aliasCompact.contains(query) { consider(1050) }
-        if item.pinyinFull?.contains(query) == true { consider(1000) }
+        // 包含：走 UTF-8 字节级匹配（Foundation 的 String.contains 走 locale
+        // 感知搜索，慢一个数量级；字节级子串匹配在 UTF-8 上天然字符对齐）
+        if bytesContain(item.nameLower, query) { consider(1200) }
+        if bytesContain(item.nameCompact, query) { consider(1150) }
+        if bytesContain(item.aliasLower, query) { consider(1100) }
+        if bytesContain(item.aliasCompact, query) { consider(1050) }
+        if let full = item.pinyinFull, bytesContain(full, query) { consider(1000) }
 
         // 子序列（如 "vsc" → Visual Studio Code）
-        if isSubsequence(query, in: item.nameLower) || isSubsequence(query, in: item.nameCompact) { consider(800) }
-        if isSubsequence(query, in: item.aliasLower) || isSubsequence(query, in: item.aliasCompact) { consider(750) }
-        if let full = item.pinyinFull, isSubsequence(query, in: full) { consider(700) }
+        if asciiQuery {
+            if isSubsequence(queryBytes, in: item.nameLower) || isSubsequence(queryBytes, in: item.nameCompact) { consider(800) }
+            if isSubsequence(queryBytes, in: item.aliasLower) || isSubsequence(queryBytes, in: item.aliasCompact) { consider(750) }
+            if let full = item.pinyinFull, isSubsequence(queryBytes, in: full) { consider(700) }
+        } else {
+            if isSubsequenceCharacters(query, in: item.nameLower) || isSubsequenceCharacters(query, in: item.nameCompact) { consider(800) }
+            if isSubsequenceCharacters(query, in: item.aliasLower) || isSubsequenceCharacters(query, in: item.aliasCompact) { consider(750) }
+            if let full = item.pinyinFull, isSubsequenceCharacters(query, in: full) { consider(700) }
+        }
 
         guard best > 0 else { return nil }
 
@@ -167,7 +191,52 @@ final class SearchEngine {
         return best
     }
 
-    static func isSubsequence(_ query: String, in target: String) -> Bool {
+    /// 字节级子串包含：手写首字节剪枝的朴素匹配，零堆分配。
+    /// 不要用 utf8.firstRange(of:)——它每次调用都把两个串拷贝成连续数组建
+    /// Z-Searcher（libswift_StringProcessing 的 ZSearcher），热点采样证实是
+    /// 搜索热路径最大开销；也不要用 String.contains——走 Foundation 的
+    /// locale 感知搜索，同样慢一个量级。
+    static func bytesContain(_ haystack: String, _ needle: String) -> Bool {
+        let hay = haystack.utf8
+        let nee = needle.utf8
+        guard !nee.isEmpty else { return true }
+        guard hay.count >= nee.count, let first = nee.first else { return false }
+
+        var searchStart = hay.startIndex
+        while true {
+            guard let firstPos = hay[searchStart...].firstIndex(of: first) else { return false }
+            var i = firstPos
+            var matched = 0
+            for b in nee {
+                if i == hay.endIndex || hay[i] != b { break }
+                hay.formIndex(after: &i)
+                matched += 1
+            }
+            if matched == nee.count { return true }
+            if i == hay.endIndex { return false }
+            searchStart = hay.index(after: firstPos)
+        }
+    }
+
+    /// 字节级子序列：bytes 由调用方按查询预计算；扫描用 formIndex 手写推进，
+    /// 不创建切片、不走泛型 firstIndex
+    static func isSubsequence(_ bytes: [UInt8], in target: String) -> Bool {
+        let view = target.utf8
+        guard !bytes.isEmpty, bytes.count <= view.count else { return false }
+        var idx = view.startIndex
+        let end = view.endIndex
+        for byte in bytes {
+            while idx != end, view[idx] != byte {
+                view.formIndex(after: &idx)
+            }
+            if idx == end { return false }
+            view.formIndex(after: &idx)
+        }
+        return true
+    }
+
+    /// Character 级子序列（非 ASCII 查询用，避免跨字符边界的假匹配）
+    static func isSubsequenceCharacters(_ query: String, in target: String) -> Bool {
         guard !query.isEmpty, query.count <= target.count else { return false }
         var searchStart = target.startIndex
         for character in query {

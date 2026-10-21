@@ -8,7 +8,8 @@ struct IndexedApp {
     let chineseName: String?
     /// bundle 文件名（去 .app 后缀），如 "Finder"
     let englishName: String
-    let icon: NSImage
+    // 注意：不在此处提取 NSImage 图标——189 个图标常驻约 3MB 且拖慢扫描，
+    // 渲染时经 NSWorkspace.shared.icon(forFile:) 按需获取（系统内部有缓存）
 }
 
 /// 扫描常见目录下的 .app 应用
@@ -99,13 +100,13 @@ enum AppIndexer {
             if name.lowercased().hasSuffix(".app") {
                 name = String(name.dropLast(4))
             }
+            let englishName = ((path as NSString).lastPathComponent as NSString).deletingPathExtension
             apps.append(
                 IndexedApp(
                     path: path,
                     name: name,
-                    chineseName: zhDisplayName(bundlePath: path) ?? zhNameOverrides[((path as NSString).lastPathComponent as NSString).deletingPathExtension],
-                    englishName: ((path as NSString).lastPathComponent as NSString).deletingPathExtension,
-                    icon: NSWorkspace.shared.icon(forFile: path)
+                    chineseName: zhDisplayName(bundlePath: path) ?? zhNameOverrides[englishName],
+                    englishName: englishName
                 )
             )
         }

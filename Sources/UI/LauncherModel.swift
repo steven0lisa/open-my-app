@@ -24,10 +24,10 @@ final class LauncherModel: ObservableObject {
         rescan()
     }
 
-    /// 后台重扫索引并刷新结果（新装应用后由目录监听触发）
-    func rescan() {
+    /// 后台重扫索引并刷新结果；force=true 用于目录监听触发的强制刷新
+    func rescan(force: Bool = false) {
         Task {
-            await engine.rescanApps()
+            await engine.rescanApps(force: force)
             refresh()
         }
     }

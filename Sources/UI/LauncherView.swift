@@ -115,7 +115,7 @@ private struct ResultRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Group {
-                if let icon = result.icon {
+                if let icon = Self.icon(for: result) {
                     Image(nsImage: icon).resizable().interpolation(.high)
                 } else {
                     Image(systemName: "app.fill").resizable()
@@ -146,5 +146,22 @@ private struct ResultRow: View {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(isSelected ? Color.accentColor : Color.clear)
         )
+    }
+
+    /// 图标按需解析：应用走 NSWorkspace（系统内部缓存），设置项走 SF Symbol，
+    /// 索引不常驻任何 NSImage，只有可见的 ≤9 行产生图标对象
+    static func icon(for result: SearchResult) -> NSImage? {
+        switch result.kind {
+        case .application:
+            guard let path = result.appPath else { return nil }
+            let icon = NSWorkspace.shared.icon(forFile: path)
+            icon.size = NSSize(width: 32, height: 32)
+            return icon
+        case .systemSetting:
+            return NSImage(
+                systemSymbolName: result.symbolName ?? "gearshape.fill",
+                accessibilityDescription: result.title
+            )
+        }
     }
 }

@@ -22,11 +22,12 @@ struct SearchResult: Identifiable, Equatable {
     /// 别名（应用英文原名 / 设置项英文名）
     let alias: String
     let kind: ResultKind
-    let icon: NSImage?
     /// 应用程序：bundle 路径
     let appPath: String?
     /// 系统设置：x-apple.systempreferences 锚点
     let settingAnchor: String?
+    /// 系统设置项的 SF Symbol 名（应用图标走 NSWorkspace 按需获取，不常驻内存）
+    let symbolName: String?
 
     static func == (lhs: SearchResult, rhs: SearchResult) -> Bool {
         lhs.id == rhs.id

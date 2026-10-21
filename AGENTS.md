@@ -33,6 +33,17 @@ swift scripts/generate-icon.swift   # 重新生成应用图标
 - 系统设置面板通过 `x-apple.systempreferences:<扩展锚点>` 打开（macOS 13+），锚点清单在 `SystemSettingsCatalog`。
 - 中文搜索：应用本地化名经 `kCFStringTransformMandarinLatin` + 去声调得到全拼与首字母，配合原名 / 英文名打分（前缀 > 包含 > 子序列），再叠加使用频次加权。系统语言非中文时，第三方应用读 bundle 内 `zh_CN.lproj/InfoPlist.strings` 强制取中文名；系统应用资源在 dyld 共享缓存中读不到，用 `AppIndexer.zhNameOverrides` 静态对照表兜底。
 - 索引新鲜度双通道：面板每次显示时后台重扫（`LauncherModel.prepare()`），同时 `AppDirectoryWatcher` 用 FSEvents 监听 `AppIndexer.searchDirectories`（只监听启动时已存在的目录），去抖 1.5s 后触发 `PanelController.rescanIndex()`，面板隐藏时也会更新索引。
+
+## 性能设计（勿回退）
+
+- **内存**：索引不持有 NSImage——图标在结果行渲染时经 `NSWorkspace.icon(forFile:)` 按需解析（系统内部缓存），只有可见的 ≤9 行产生图标对象。物理占用 ~29MB（RSS 103MB 是共享框架页，不是真实占用）。
+- **搜索热路径**（基线 94µs/次，Swift -O，188 应用 + 36 设置项）：
+  - 查询级预计算 `queryBytes` / `asciiQuery`，每次搜索只算一次（曾因放在 isSubsequence 内逐字符判定成为热点）
+  - 包含匹配用 `SearchEngine.bytesContain`（手写首字节剪枝零分配）。**禁用** `String.contains`（走 Foundation locale 感知搜索）和 `utf8.firstRange(of:)`（每次调用 `_copyToContiguousArray` 拷贝两串建 ZSearcher）——采样实测两者都慢一个量级以上
+  - 子序列匹配：ASCII 查询走 UTF-8 字节 formIndex 手写扫描；非 ASCII 退回 Character 级
+  - 使用频次缓存在 `Preferences` 静态内存（`UserDefaults.dictionary(forKey:)` 每次调用重新反序列化 plist，曾是打分热路径最大热点）
+- **扫描**：`rescanApps(force:)` 带 60s 保鲜期，唤出面板时期内直接跳过；FSEvents 回调走 `force: true`；扫描在 `utility` 优先级后台
+- **空闲功耗**：鼠标/键盘事件监听仅在面板可见时安装（`activateMonitors`），隐藏即卸载（`deactivateMonitors`，注意在监听回调内移除需延迟一跳）。空闲时进程零定时器、零轮询、零事件源，仅剩零开销的 Carbon 热键与 FSEvents，实测空闲 CPU 0.0%
 - 全局快捷键可在设置页自定义：偏好存 keyCode + Carbon 修饰键掩码（`Preferences.hotkeyKeyCode/hotkeyCarbonMask`），设置页 `HotkeyRecorderButton` 录制（要求 ⌘/⌥/⌃ 至少一个），变更经 `SettingsWindowController.onPreferenceChanged` 触发 `HotkeyManager.reRegister()` 与托盘刷新。
 - 应用名称用 `FileManager.displayName(atPath:)` 取本地化名（中文系统返回中文名）。
 

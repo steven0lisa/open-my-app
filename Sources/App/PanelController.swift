@@ -12,8 +12,8 @@ final class PanelController: NSObject, NSWindowDelegate {
     var isVisible: Bool { panel?.isVisible ?? false }
 
     /// 应用目录变化后后台重扫索引（面板隐藏时也会调用）
-    func rescanIndex() {
-        model.rescan()
+    func rescanIndex(force: Bool = false) {
+        model.rescan(force: force)
     }
 
     private var panel: NSPanel?
@@ -28,7 +28,8 @@ final class PanelController: NSObject, NSWindowDelegate {
         super.init()
         buildPanel()
         setupModelCallbacks()
-        setupMonitors()
+        // 事件监听不在此安装：showPanel 时安装、hidePanel 时卸载，
+        // 面板隐藏期间进程零事件源，空闲功耗趋近于零
     }
 
     // MARK: - 显示 / 隐藏
@@ -43,11 +44,13 @@ final class PanelController: NSObject, NSWindowDelegate {
         positionPanel()
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
+        activateMonitors()
     }
 
     func hidePanel() {
         guard let panel, panel.isVisible else { return }
         panel.orderOut(nil)
+        deactivateMonitors()
     }
 
     // MARK: - 窗口构建
@@ -104,14 +107,15 @@ final class PanelController: NSObject, NSWindowDelegate {
         }
     }
 
-    private func setupMonitors() {
-        // 其他应用内的点击：全局监听
+    /// 仅面板可见期间监听事件；隐藏时全部卸载
+    private func activateMonitors() {
+        guard globalClickMonitor == nil else { return }
+
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         ) { [weak self] _ in
             Task { @MainActor in self?.handleOutsideClick() }
         }
-        // 本应用其他窗口（设置窗、菜单栏图标）内的点击：本地监听
         localClickMonitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         ) { [weak self] event in
@@ -120,12 +124,22 @@ final class PanelController: NSObject, NSWindowDelegate {
             }
             return event
         }
-        // 键盘：↑↓ 选择、回车打开、Esc 关闭
         keyDownMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, let panel = self.panel, panel.isVisible, event.window === panel else {
                 return event
             }
             return self.handleKeyDown(event)
+        }
+    }
+
+    private func deactivateMonitors() {
+        let monitors = [globalClickMonitor, localClickMonitor, keyDownMonitor].compactMap { $0 }
+        globalClickMonitor = nil
+        localClickMonitor = nil
+        keyDownMonitor = nil
+        // 在监听回调内部移除监听不安全，延迟一跳
+        DispatchQueue.main.async {
+            monitors.forEach(NSEvent.removeMonitor)
         }
     }
 

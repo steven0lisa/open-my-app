@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         directoryWatcher = AppDirectoryWatcher(directories: AppIndexer.searchDirectories)
         directoryWatcher?.onChange = { [weak self] in
             Task { @MainActor in
-                self?.panelController?.rescanIndex()
+                self?.panelController?.rescanIndex(force: true)
             }
         }
         directoryWatcher?.start()
