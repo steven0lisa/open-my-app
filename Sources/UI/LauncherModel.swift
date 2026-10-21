@@ -21,11 +21,15 @@ final class LauncherModel: ObservableObject {
     /// 面板每次显示时调用：重扫应用目录 + 刷新焦点
     func prepare() {
         focusToken += 1
+        rescan()
+    }
+
+    /// 后台重扫索引并刷新结果（新装应用后由目录监听触发）
+    func rescan() {
         Task {
             await engine.rescanApps()
             refresh()
         }
-        refresh()
     }
 
     func refresh() {

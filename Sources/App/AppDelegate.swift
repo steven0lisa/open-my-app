@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
     private var settingsController: SettingsWindowController?
     private var hotkeyManager: HotkeyManager?
+    private var directoryWatcher: AppDirectoryWatcher?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         panelController = PanelController()
@@ -31,6 +32,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         hotkeyManager?.install()
+
+        // 监听应用目录：新装 / 删除应用后自动更新搜索索引
+        directoryWatcher = AppDirectoryWatcher(directories: AppIndexer.searchDirectories)
+        directoryWatcher?.onChange = { [weak self] in
+            Task { @MainActor in
+                self?.panelController?.rescanIndex()
+            }
+        }
+        directoryWatcher?.start()
 
         // 启动即出现搜索框
         panelController?.showPanel()

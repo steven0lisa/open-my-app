@@ -27,11 +27,14 @@ final class SearchEngine {
     }
 
     /// 后台重新扫描应用目录（应用安装/删除后保持新鲜）
-    func rescanApps() async {
+    @discardableResult
+    func rescanApps() async -> Int {
         let scanned = await Task.detached(priority: .userInitiated) {
             AppIndexer.scan()
         }.value
         appItems = scanned.map(Self.makeItem)
+        NSLog("[OpenMyApp] 应用索引已刷新: \(scanned.count) 个应用")
+        return scanned.count
     }
 
     func search(_ rawQuery: String) -> [SearchResult] {

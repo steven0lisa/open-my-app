@@ -11,6 +11,11 @@ final class PanelController: NSObject, NSWindowDelegate {
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
+    /// 应用目录变化后后台重扫索引（面板隐藏时也会调用）
+    func rescanIndex() {
+        model.rescan()
+    }
+
     private var panel: NSPanel?
     private let model = LauncherModel()
     private var globalClickMonitor: Any?

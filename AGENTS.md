@@ -32,6 +32,7 @@ swift scripts/generate-icon.swift   # 重新生成应用图标
 - 点击面板外隐藏 = 全局鼠标监听（其他应用）+ 本地鼠标监听（本应用其他窗口）双通道。
 - 系统设置面板通过 `x-apple.systempreferences:<扩展锚点>` 打开（macOS 13+），锚点清单在 `SystemSettingsCatalog`。
 - 中文搜索：应用本地化名经 `kCFStringTransformMandarinLatin` + 去声调得到全拼与首字母，配合原名 / 英文名打分（前缀 > 包含 > 子序列），再叠加使用频次加权。系统语言非中文时，第三方应用读 bundle 内 `zh_CN.lproj/InfoPlist.strings` 强制取中文名；系统应用资源在 dyld 共享缓存中读不到，用 `AppIndexer.zhNameOverrides` 静态对照表兜底。
+- 索引新鲜度双通道：面板每次显示时后台重扫（`LauncherModel.prepare()`），同时 `AppDirectoryWatcher` 用 FSEvents 监听 `AppIndexer.searchDirectories`（只监听启动时已存在的目录），去抖 1.5s 后触发 `PanelController.rescanIndex()`，面板隐藏时也会更新索引。
 - 全局快捷键可在设置页自定义：偏好存 keyCode + Carbon 修饰键掩码（`Preferences.hotkeyKeyCode/hotkeyCarbonMask`），设置页 `HotkeyRecorderButton` 录制（要求 ⌘/⌥/⌃ 至少一个），变更经 `SettingsWindowController.onPreferenceChanged` 触发 `HotkeyManager.reRegister()` 与托盘刷新。
 - 应用名称用 `FileManager.displayName(atPath:)` 取本地化名（中文系统返回中文名）。
 
