@@ -20,10 +20,17 @@ trap cleanup EXIT
 
 echo "[create-dmg] Version: ${VERSION}"
 
-# 1. 生成背景图（660x400，蓝色渐变顶部）
-echo "[create-dmg] Generating background image..."
-python3 << 'PYEOF'
-import struct, zlib, os
+# 1. 组装暂存目录（app + Applications 链接 + 背景目录）
+echo "[create-dmg] Staging contents..."
+mkdir -p "${STAGING_DIR}/${VOLUME_NAME}/.background"
+cp -R "${APP_PATH}" "${STAGING_DIR}/${VOLUME_NAME}/${APP_NAME}"
+ln -s /Applications "${STAGING_DIR}/${VOLUME_NAME}/Applications"
+
+# 2. 生成背景图（660x400，蓝色渐变顶部）直接写入暂存背景目录
+BG_DIR="${STAGING_DIR}/${VOLUME_NAME}/.background" python3 << 'PYEOF'
+import os
+import struct
+import zlib
 
 WIDTH, HEIGHT = 660, 400
 
@@ -61,57 +68,10 @@ def make_png():
     iend = chunk(b'IEND', b'')
     return sig + ihdr + idat + iend
 
-bg_dir = os.environ['BG_DIR']
-path = os.path.join(bg_dir, 'background.png')
-with open(path, 'wb') as f:
-    f.write(make_png())
-print(f'[create-dmg] Background saved: {path}')
-PYEOF
-
-# 2. 组装暂存目录
-echo "[create-dmg] Staging contents..."
-mkdir -p "${STAGING_DIR}/${VOLUME_NAME}/.background"
-cp -R "${APP_PATH}" "${STAGING_DIR}/${VOLUME_NAME}/${APP_NAME}"
-ln -s /Applications "${STAGING_DIR}/${VOLUME_NAME}/Applications"
-BG_DIR="${STAGING_DIR}/${VOLUME_NAME}/.background" python3 << 'PYEOF'
-import struct, zlib, os
-
-WIDTH, HEIGHT = 660, 400
-
-def make_png():
-    pixels = []
-    for y in range(HEIGHT):
-        row = []
-        for x in range(WIDTH):
-            r, g, b, a = 245, 245, 247, 255
-            if y < 50:
-                t = y / 50.0
-                r = int(90 + (245 - 90) * t)
-                g = int(130 + (245 - 130) * t)
-                b = int(245 + (247 - 245) * t)
-            elif y > 360:
-                t = (y - 360) / 40.0
-                r = int(245 - 10 * t)
-                g = int(245 - 10 * t)
-                b = int(247 - 8 * t)
-            row.extend([r, g, b, a])
-        pixels.append(bytes([0] + row))
-
-    raw = b''.join(pixels)
-
-    def chunk(ctype, data):
-        c = ctype + data
-        return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
-
-    sig = b'\x89PNG\r\n\x1a\n'
-    ihdr = chunk(b'IHDR', struct.pack('>IIBBBBB', WIDTH, HEIGHT, 8, 6, 0, 0, 0))
-    idat = chunk(b'IDAT', zlib.compress(raw, 9))
-    iend = chunk(b'IEND', b'')
-    return sig + ihdr + idat + iend
-
 path = os.path.join(os.environ['BG_DIR'], 'background.png')
 with open(path, 'wb') as f:
     f.write(make_png())
+print(f'[create-dmg] Background saved: {path}')
 PYEOF
 
 # 3. 创建可写 DMG 并挂载
