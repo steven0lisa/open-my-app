@@ -56,11 +56,20 @@ final class LauncherModel: ObservableObject {
     /// `t <关键字>` → Terminal 打开目录；`o <关键字>` → Finder 打开目录/文件
     static func parseCommand(_ raw: String) -> (mode: CommandMode, keyword: String)? {
         let trimmed = raw.trimmingCharacters(in: .whitespaces)
-        if trimmed.hasPrefix("t ") {
-            return (.terminal, trimmed.dropFirst(2).trimmingCharacters(in: .whitespaces))
-        }
-        if trimmed.hasPrefix("o ") {
-            return (.finder, trimmed.dropFirst(2).trimmingCharacters(in: .whitespaces))
+        let commands: [(word: String, mode: CommandMode)] = [
+            ("t", .terminal),
+            ("terminal", .terminal),
+            ("o", .finder),
+            ("open", .finder),
+        ]
+        for command in commands {
+            if trimmed == command.word {
+                return (command.mode, "")
+            }
+            let prefix = command.word + " "
+            if trimmed.hasPrefix(prefix) {
+                return (command.mode, trimmed.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces))
+            }
         }
         return nil
     }
