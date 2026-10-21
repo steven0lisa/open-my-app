@@ -81,6 +81,7 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
 - 提交只 add 本会话明确改动的文件，`git add -A` 前先 `git status` 甄别（并行会话可能留下无关 WIP）。
 - **提交信息用英文**（Conventional Commits 风格：`feat:` / `fix:` / `perf:` / `docs:` / `chore:`）。
 - **README 双语维护**：`README.md` 英文（GitHub 默认展示）+ `README.zh-CN.md` 中文，内容变更需同步两个文件及顶部语言切换链接。
+- **发版日志用英文**：`package.json` 的 `releaseHistory`（CI 会作为 GitHub Release Notes 自动生成）全部写英文；新增条目时注意核对 version 字段（bump-version.sh 的 sed 会把旧条目的 version 一并替换）。
 
 ## 敏感信息规则（强制）
 

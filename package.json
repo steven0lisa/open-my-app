@@ -1,24 +1,24 @@
 {
   "name": "open-my-app",
   "version": "1.0.1",
-  "description": "OpenMyApp — Spotlight 风格的 macOS 极简应用启动器（拼音搜索 App 与系统设置）",
+  "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
     {
       "version": "1.0.1",
       "date": "2026-10-21",
       "changes": [
-        "修复面板顶部残留标题栏空隙，搜索框垂直居中（面板改为无边框样式）"
+        "Fix the leftover titlebar gap at the top of the panel; the search field is now vertically centered (panel switched to borderless style)"
       ]
     },
     {
-      "version": "1.0.1",
+      "version": "1.0.0",
       "date": "2026-10-21",
       "changes": [
-        "首个版本：Spotlight 风格悬浮搜索框，启动即显示",
-        "拼音 / 拼音首字母 / 英文名搜索本机应用程序",
-        "搜索并直达系统设置各面板",
-        "⌥Space 全局唤出，点击面板外自动隐藏",
-        "菜单栏常驻，可隐藏图标以节省菜单栏空间"
+        "Initial release: Spotlight-style floating search box, shown on launch",
+        "Search local apps by full pinyin, pinyin initials, or English name",
+        "Search and open System Settings panes directly",
+        "Global ⌥Space hotkey; auto-hide on outside click",
+        "Menu bar resident with hideable icon to save menu bar space"
       ]
     }
   ]
