@@ -60,3 +60,18 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# ---- OpenMyApp 项目 ----
+# XcodeGen 生成的工程文件不入库
+*.xcodeproj/
+build/
+dist/
+DerivedData/
+.DS_Store
+*.log
+Package.resolved
+
+# 本地笔记 / 插件目录（敏感扫描规则：不入库）
+.v2c/
+.findings/
+

@@ -1,0 +1,18 @@
+{
+  "name": "open-my-app",
+  "version": "1.0.0",
+  "description": "OpenMyApp — Alfred 风格的 macOS 极简应用启动器（拼音搜索 App 与系统设置）",
+  "releaseHistory": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-21",
+      "changes": [
+        "首个版本：Alfred 风格悬浮搜索框，启动即显示",
+        "拼音 / 拼音首字母 / 英文名搜索本机应用程序",
+        "搜索并直达系统设置各面板",
+        "⌥Space 全局唤出，点击面板外自动隐藏",
+        "菜单栏常驻，可隐藏图标以节省菜单栏空间"
+      ]
+    }
+  ]
+}
