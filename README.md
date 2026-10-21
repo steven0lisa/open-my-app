@@ -2,7 +2,7 @@
 
 [English](README.md) | [中文](README.zh-CN.md)
 
-An Alfred-style minimalist app launcher for macOS: hit ⌥Space to summon a floating search box, type a pinyin or English name to search local applications and System Settings panes, then press Return to open the top hit.
+A Spotlight-style minimalist app launcher for macOS: hit ⌥Space to summon a floating search box, type a pinyin or English name to search local applications and System Settings panes, then press Return to open the top hit.
 
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 
@@ -10,7 +10,7 @@ An Alfred-style minimalist app launcher for macOS: hit ⌥Space to summon a floa
 
 - **Pinyin search**: type `fangda` or `fd` to find Finder; English names like `finder` work too
 - **Direct access to System Settings**: search `sound`, `shengyin`, or `声音` to open the matching settings pane
-- **Alfred-style UI**: frosted-glass floating panel shown on launch; ↑/↓ to select, Return to open the top hit
+- **Spotlight-style UI**: frosted-glass floating panel shown on launch; ↑/↓ to select, Return to open the top hit
 - **Auto-hide on outside click**; Esc dismisses as well
 - **Menu bar resident**, with an option to hide the menu bar icon to save space (the global hotkey still works while hidden)
 - **Customizable hotkey**: record a new key combination in Settings (⌥Space by default)

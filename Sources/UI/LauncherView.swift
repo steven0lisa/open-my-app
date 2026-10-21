@@ -18,7 +18,7 @@ enum PanelMetrics {
     }
 }
 
-/// Alfred 风格搜索主界面：顶部搜索框 + 下方结果列表
+/// Spotlight 风格搜索主界面：顶部搜索框 + 下方结果列表
 struct LauncherView: View {
     @ObservedObject var model: LauncherModel
     @FocusState private var fieldFocused: Bool

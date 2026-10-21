@@ -6,7 +6,7 @@ private final class LauncherPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
 
-/// Alfred 风格悬浮面板的窗口控制器：
+/// Spotlight 风格悬浮面板的窗口控制器：
 /// - 非激活式 NSPanel（不抢夺当前应用焦点）
 /// - 点击面板外部 / Esc / 启动应用后自动隐藏
 /// - ⌥Space 由 HotkeyManager 触发 toggle
@@ -83,7 +83,7 @@ final class PanelController: NSObject, NSWindowDelegate {
         self.panel = panel
     }
 
-    /// 居中于主屏水平方向，垂直位于屏幕上 1/3 偏上（Alfred 默认位置附近）
+    /// 居中于主屏水平方向，垂直位于屏幕上 1/3 偏上（Spotlight 默认位置附近）
     private func positionPanel() {
         guard let panel, let screen = NSScreen.main else { return }
         let visibleFrame = screen.visibleFrame
