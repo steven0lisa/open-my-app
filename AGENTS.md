@@ -40,7 +40,7 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
 
 ## 关键设计
 
-- 悬浮面板是 `NSPanel`（`.nonactivatingPanel` + `.titled + .fullSizeContentView`），不抢当前应用焦点；`NSHostingController.sizingOptions = [.preferredContentSize]` 让窗口随结果数量伸缩，`windowDidResize` 保持顶边不动。**构建面板时必须先 `setContentSize` 给初始尺寸**，否则 SwiftUI 布局完成前宽度为 0，居中定位会算错（实测踩过）。
+- 悬浮面板是**无边框** `NSPanel`（`.borderless + .nonactivatingPanel`，圆角由内容层 `VisualEffectBackground` 自绘）。无边框窗口默认不可成为 key window，靠 `LauncherPanel.canBecomeKey` 重写解决；**不能用 `.titled + .fullSizeContentView` 冒充无边框**——即使隐藏标题文字，标题栏安全区高度仍在，面板顶部会留一条空白（实测踩过）。`NSHostingController.sizingOptions = [.preferredContentSize]` 让窗口随结果数量伸缩，`windowDidResize` 保持顶边不动；构建面板时必须先 `setContentSize` 给初始尺寸，否则 SwiftUI 布局完成前宽度为 0，居中定位会算错（实测踩过）。
 - 点击面板外隐藏 = 全局鼠标监听（其他应用）+ 本地鼠标监听（本应用其他窗口）双通道；监听**仅在面板可见时安装**，隐藏即卸载（见性能设计）。
 - 系统设置面板通过 `x-apple.systempreferences:<扩展锚点>` 打开（macOS 13+），锚点清单在 `SystemSettingsCatalog`。
 - 中文搜索：应用名经 `kCFStringTransformMandarinLatin` + 去声调得到全拼与首字母，配合原名 / 英文名打分（前缀 > 包含 > 子序列），再叠加使用频次加权。系统语言非中文时，第三方应用读 bundle 内 `zh_CN.lproj/InfoPlist.strings` 强制取中文名；**系统应用资源在 dyld 共享缓存中读不到**，用 `AppIndexer.zhNameOverrides` 静态对照表兜底（新增系统应用支持不了拼音时，先查这张表）。
@@ -92,5 +92,5 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
 2. **系统应用中文名读不到**：磁盘上有 zh_CN.lproj 但 InfoPlist.strings 在 dyld 共享缓存里，`Bundle.path(forResource:forLocalization:)` 返回 nil——只能靠 `zhNameOverrides` 静态表。
 3. **Swift 字符串搜索两大陷阱**：`String.contains` 走 Foundation locale 感知搜索；`utf8.firstRange(of:)` 每次调用拷贝数组建 ZSearcher。搜索热路径一律用 `bytesContain` / 字节级 `isSubsequence`。做基准时注意 `||` 短路会让微基准几乎不执行（踩过）。
 4. **本机 bash 3.2 + `set -u`：中文全角括号紧贴 `$var` 会被解析成未绑定变量**（`check-sensitive.sh` 踩过）——shell 脚本里全角标点与 `$var` 不要相邻。
-5. **NSPanel 没有 `becomesKeyOnlyFirstResponder` 属性**（头文件只有 `becomesKeyOnlyIfNeeded`）；非激活面板本身可成为 key window，无需额外处理。`NSTextView.hasMarkedText()` 是**方法**不是属性（输入法组字判断）。
+5. **NSPanel 没有 `becomesKeyOnlyFirstResponder` 属性**（头文件只有 `becomesKeyOnlyIfNeeded`）。**borderless 面板默认不可成为 key window**，必须子类化重写 `canBecomeKey → true`（`LauncherPanel`），titled 面板则无此问题——但 titled + fullSizeContentView 有标题栏安全区空隙问题，见「关键设计」。`NSTextView.hasMarkedText()` 是**方法**不是属性（输入法组字判断）。
 6. **后台进程验证会被工具调用结束杀掉**：长驻验证用 `nohup … & disown` 脱离；GUI 自动化按键（osascript System Events）需先把应用 `set frontmost`，但其他应用抢焦点会导致按键落错目标——交互链路测试尽量在单次脚本内原子完成。

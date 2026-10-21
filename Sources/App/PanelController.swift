@@ -1,6 +1,11 @@
 import AppKit
 import SwiftUI
 
+/// 无边框面板默认不可成为 key window，必须显式允许，否则搜索框拿不到输入焦点
+private final class LauncherPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+}
+
 /// Alfred 风格悬浮面板的窗口控制器：
 /// - 非激活式 NSPanel（不抢夺当前应用焦点）
 /// - 点击面板外部 / Esc / 启动应用后自动隐藏
@@ -59,13 +64,10 @@ final class PanelController: NSObject, NSWindowDelegate {
         let hosting = NSHostingController(rootView: LauncherView(model: model))
         hosting.sizingOptions = [.preferredContentSize]
 
-        let panel = NSPanel(contentViewController: hosting)
-        panel.styleMask = [.titled, .nonactivatingPanel, .fullSizeContentView]
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
-        panel.standardWindowButton(.closeButton)?.isHidden = true
-        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        panel.standardWindowButton(.zoomButton)?.isHidden = true
+        // 必须用 borderless：titled + fullSizeContentView 即使隐藏标题文字，
+        // 标题栏安全区高度仍然存在，会在面板顶部留一条空白
+        let panel = LauncherPanel(contentViewController: hosting)
+        panel.styleMask = [.borderless, .nonactivatingPanel]
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
