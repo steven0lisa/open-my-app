@@ -79,6 +79,8 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
 - 版本号唯一来源是 `VERSION`，由 `scripts/bump-version.sh patch|minor|major` 同步到 `package.json` 与 `project.yml`；发版日志写在 `package.json` 的 `releaseHistory`。
 - 发版：bump → 提交 → `git tag vx.y.z` → 推送，GitHub Actions 自动构建 DMG 并发 Release（构建前有敏感扫描兜底）。
 - 提交只 add 本会话明确改动的文件，`git add -A` 前先 `git status` 甄别（并行会话可能留下无关 WIP）。
+- **提交信息用英文**（Conventional Commits 风格：`feat:` / `fix:` / `perf:` / `docs:` / `chore:`）。
+- **README 双语维护**：`README.md` 英文（GitHub 默认展示）+ `README.zh-CN.md` 中文，内容变更需同步两个文件及顶部语言切换链接。
 
 ## 敏感信息规则（强制）
 
