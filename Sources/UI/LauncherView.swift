@@ -10,11 +10,14 @@ enum PanelMetrics {
     static let maxVisibleRows = 9
 
     static var maxListHeight: CGFloat {
-        CGFloat(maxVisibleRows) * (rowHeight + rowSpacing) + listPadding
+        CGFloat(maxVisibleRows) * rowHeight + CGFloat(maxVisibleRows - 1) * rowSpacing + 2 * listPadding
     }
 
+    /// 必须与 LazyVStack 实际内容高度一致（count*行高 + (count-1)*行距 + 上下 padding），
+    /// 小了会出滚动条，大了面板底部留白（实测踩过）
     static func listHeight(forCount count: Int) -> CGFloat {
-        min(CGFloat(count) * (rowHeight + rowSpacing) - rowSpacing + listPadding, maxListHeight)
+        let contentHeight = CGFloat(count) * rowHeight + CGFloat(count - 1) * rowSpacing + 2 * listPadding
+        return min(contentHeight, maxListHeight)
     }
 }
 

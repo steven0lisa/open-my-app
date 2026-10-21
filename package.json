@@ -1,10 +1,17 @@
 {
   "name": "open-my-app",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
     {
-      "version": "1.0.1",
+      "version": "1.0.2",
+      "date": "2026-10-21",
+      "changes": [
+        "Fix the result list height formula so the panel fits rows exactly (a 10pt shortfall caused a scrollbar)"
+      ]
+    },
+    {
+      "version": "1.0.2",
       "date": "2026-10-21",
       "changes": [
         "Fix the leftover titlebar gap at the top of the panel; the search field is now vertically centered (panel switched to borderless style)"

@@ -97,3 +97,4 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
 4. **本机 bash 3.2 + `set -u`：中文全角括号紧贴 `$var` 会被解析成未绑定变量**（`check-sensitive.sh` 踩过）——shell 脚本里全角标点与 `$var` 不要相邻。
 5. **NSPanel 没有 `becomesKeyOnlyFirstResponder` 属性**（头文件只有 `becomesKeyOnlyIfNeeded`）。**borderless 面板默认不可成为 key window**，必须子类化重写 `canBecomeKey → true`（`LauncherPanel`），titled 面板则无此问题——但 titled + fullSizeContentView 有标题栏安全区空隙问题，见「关键设计」。`NSTextView.hasMarkedText()` 是**方法**不是属性（输入法组字判断）。
 6. **后台进程验证会被工具调用结束杀掉**：长驻验证用 `nohup … & disown` 脱离；GUI 自动化按键（osascript System Events）需先把应用 `set frontmost`，但其他应用抢焦点会导致按键落错目标——交互链路测试尽量在单次脚本内原子完成。
+7. **结果列表高度公式**：`PanelMetrics.listHeight` 必须等于 LazyVStack 实际内容高度（`count×46 + (count-1)×4 + 20` 上下 padding），算少 10pt 就会出现滚动条（实测踩过）。
