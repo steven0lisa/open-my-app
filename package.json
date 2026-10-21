@@ -1,8 +1,15 @@
 {
   "name": "open-my-app",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
+    {
+      "version": "1.2.1",
+      "date": "2026-10-21",
+      "changes": [
+        "File commands now exclude common dependency and build directories (node_modules, target, DerivedData, Pods, etc.) so results surface real project files"
+      ]
+    },
     {
       "version": "1.2.0",
       "date": "2026-10-21",

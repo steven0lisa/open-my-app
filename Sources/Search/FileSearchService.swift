@@ -120,8 +120,33 @@ final class FileSearchService: NSObject {
         self.query = query
     }
 
+    /// 常见依赖库 / 构建产物目录名：结果路径中出现任一组件（"/<name>/"）即跳过。
+    /// kMDItemPath 在谓词中不受支持，这类过滤只能内存侧做
+    private static let excludedDirectoryNames: Set<String> = [
+        // JS / 前端
+        "node_modules", "bower_components", ".next", ".nuxt", ".output", ".parcel-cache",
+        // Swift / Apple
+        "DerivedData", ".build", ".swiftpm", "Pods", "Carthage", ".packages",
+        // Rust / C / Go
+        "target", "vendor",
+        // Python
+        "__pycache__", ".venv", "venv", "site-packages", ".pytest_cache", ".mypy_cache", ".tox",
+        // 通用构建产物与版本库
+        "build", "dist", "coverage", ".cache", ".git", ".gradle", ".terraform",
+    ]
+
+    /// 路径中是否包含被排除的目录组件
+    private static func isExcludedPath(_ path: String) -> Bool {
+        for name in excludedDirectoryNames {
+            if path.contains("/\(name)/") {
+                return true
+            }
+        }
+        return false
+    }
+
     private static func collect(_ query: NSMetadataQuery, limit: Int) -> [Hit] {
-        // kMDItemPath 在谓词中不受支持（会被静默忽略，实测踩过），Library 排除只能在内存侧做
+        // kMDItemPath 在谓词中不受支持（会被静默忽略，实测踩过），Library / 依赖目录排除只能在内存侧做
         let libraryPrefix = NSHomeDirectory() + "/Library/"
         var hits: [Hit] = []
         for item in query.results {
@@ -131,6 +156,7 @@ final class FileSearchService: NSObject {
                 continue
             }
             if path.hasPrefix(libraryPrefix) { continue }
+            if isExcludedPath(path) { continue }
             var isDirectory: ObjCBool = false
             FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
             hits.append(Hit(path: path, isDirectory: isDirectory.boolValue))
