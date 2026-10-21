@@ -1,8 +1,15 @@
 {
   "name": "open-my-app",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
+    {
+      "version": "1.2.2",
+      "date": "2026-10-21",
+      "changes": [
+        "Command results elide the shared path prefix with `.../` so the distinguishing tail of each path is always visible (full path in tooltip)"
+      ]
+    },
     {
       "version": "1.2.1",
       "date": "2026-10-21",

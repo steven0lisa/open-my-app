@@ -95,36 +95,38 @@ final class LauncherModel: ObservableObject {
             limit: 5
         ) { [weak self] hits in
             guard let self, self.commandGeneration == generation else { return }
-            self.results = hits.map { Self.makeCommandResult(mode: command.mode, hit: $0) }
+            self.results = Self.makeCommandResults(mode: command.mode, hits: hits)
             self.selectedID = self.results.first?.id
         }
     }
 
-    private static func makeCommandResult(mode: CommandMode, hit: FileSearchService.Hit) -> SearchResult {
-        let displayPath = tildePath(hit.path)
-        switch mode {
-        case .terminal:
-            return SearchResult(
-                id: "terminal:\(hit.path)",
-                title: String(format: NSLocalizedString("Open in Terminal: %@", comment: "t command"), displayPath),
-                alias: "",
-                kind: .terminal,
-                appPath: nil,
-                settingAnchor: nil,
-                symbolName: nil,
-                openPath: hit.path
-            )
-        case .finder:
-            return SearchResult(
-                id: "finder:\(hit.path)",
-                title: String(format: NSLocalizedString("Open in Finder: %@", comment: "o command"), displayPath),
-                alias: "",
-                kind: .finder,
-                appPath: nil,
-                settingAnchor: nil,
-                symbolName: nil,
-                openPath: hit.path
-            )
+    private static func makeCommandResults(mode: CommandMode, hits: [FileSearchService.Hit]) -> [SearchResult] {
+        let displayPaths = elidedPaths(hits.map { tildePath($0.path) })
+        return zip(hits, displayPaths).map { hit, displayPath in
+            switch mode {
+            case .terminal:
+                return SearchResult(
+                    id: "terminal:\(hit.path)",
+                    title: String(format: NSLocalizedString("Open in Terminal: %@", comment: "t command"), displayPath),
+                    alias: "",
+                    kind: .terminal,
+                    appPath: nil,
+                    settingAnchor: nil,
+                    symbolName: nil,
+                    openPath: hit.path
+                )
+            case .finder:
+                return SearchResult(
+                    id: "finder:\(hit.path)",
+                    title: String(format: NSLocalizedString("Open in Finder: %@", comment: "o command"), displayPath),
+                    alias: "",
+                    kind: .finder,
+                    appPath: nil,
+                    settingAnchor: nil,
+                    symbolName: nil,
+                    openPath: hit.path
+                )
+            }
         }
     }
 
@@ -135,6 +137,31 @@ final class LauncherModel: ObservableObject {
             return "~" + path.dropFirst(home.count)
         }
         return path
+    }
+
+    /// 本批路径的公共目录前缀用 "…" 替代：路径头部往往完全相同，尾部才是区分点。
+    /// 前缀截到最后一个 "/"（显示完整组件）；公共部分只剩 "~/" 时不省略
+    static func elidedPaths(_ paths: [String]) -> [String] {
+        guard paths.count > 1, var prefix = paths.first else { return paths }
+        for path in paths.dropFirst() {
+            prefix = commonPrefix(prefix, path)
+        }
+        guard let lastSlash = prefix.lastIndex(of: "/") else { return paths }
+        prefix = String(prefix[...lastSlash])
+        guard prefix.count > 3 else { return paths }
+        return paths.map { "…/" + $0.dropFirst(prefix.count) }
+    }
+
+    private static func commonPrefix(_ a: String, _ b: String) -> String {
+        var result = ""
+        var ai = a.startIndex
+        var bi = b.startIndex
+        while ai < a.endIndex, bi < b.endIndex, a[ai] == b[bi] {
+            result.append(a[ai])
+            ai = a.index(after: ai)
+            bi = b.index(after: bi)
+        }
+        return result
     }
 
     func moveSelection(_ delta: Int) {

@@ -119,6 +119,14 @@ private struct ResultRow: View {
     let isSelected: Bool
 
     var body: some View {
+        if let openPath = result.openPath {
+            row.help(openPath)
+        } else {
+            row
+        }
+    }
+
+    private var row: some View {
         HStack(spacing: 12) {
             Group {
                 if let icon = Self.icon(for: result) {
