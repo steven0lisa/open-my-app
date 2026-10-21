@@ -51,7 +51,10 @@ struct LauncherView: View {
 
     private var searchRow: some View {
         HStack(spacing: 12) {
-            TextField("搜索应用程序或系统设置…", text: $model.query)
+            TextField(
+                NSLocalizedString("Search apps or System Settings…", comment: "search placeholder"),
+                text: $model.query
+            )
                 .textFieldStyle(.plain)
                 .font(.system(size: 22))
                 .focused($fieldFocused)
@@ -76,7 +79,7 @@ struct LauncherView: View {
     @ViewBuilder
     private var content: some View {
         if model.results.isEmpty {
-            Text("没有匹配的结果")
+            Text(NSLocalizedString("No results", comment: "empty search result"))
                 .font(.system(size: 13))
                 .foregroundColor(.secondary)
                 .frame(height: 40)

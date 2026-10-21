@@ -36,22 +36,25 @@ final class StatusBarController: NSObject {
         statusItem = nil
     }
 
+    private func localized(_ key: String) -> String {
+        NSLocalizedString(key, comment: "menu / alert")
+    }
+
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
 
         // 快捷键可在设置中自定义，标题动态显示当前组合键
-        let show = NSMenuItem(
-            title: "打开搜索框（\(Preferences.hotkeyDisplay)）",
-            action: #selector(showPanelClicked),
-            keyEquivalent: ""
+        let showTitle = String(
+            format: localized("Open Search Panel (%@)"),
+            Preferences.hotkeyDisplay
         )
-        menu.addItem(show)
+        menu.addItem(NSMenuItem(title: showTitle, action: #selector(showPanelClicked), keyEquivalent: ""))
 
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "设置…", action: #selector(settingsClicked), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "隐藏菜单栏图标", action: #selector(hideIconClicked), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: localized("Settings…"), action: #selector(settingsClicked), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: localized("Hide Menu Bar Icon"), action: #selector(hideIconClicked), keyEquivalent: ""))
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "退出 OpenMyApp", action: #selector(quitClicked), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: localized("Quit OpenMyApp"), action: #selector(quitClicked), keyEquivalent: "q"))
 
         for item in menu.items {
             item.target = self
@@ -65,11 +68,14 @@ final class StatusBarController: NSObject {
 
     @objc private func hideIconClicked() {
         let alert = NSAlert()
-        alert.messageText = "隐藏菜单栏图标？"
-        alert.informativeText = "隐藏后仍可随时按 ⌥Space 唤出搜索框；在搜索框右上角的 ⚙ 设置里可以重新开启菜单栏图标。"
+        alert.messageText = localized("Hide Menu Bar Icon?")
+        alert.informativeText = String(
+            format: localized("You can still summon the panel with %@ anytime. Re-enable it from the ⚙ Settings button in the panel."),
+            Preferences.hotkeyDisplay
+        )
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "隐藏")
-        alert.addButton(withTitle: "取消")
+        alert.addButton(withTitle: localized("Hide"))
+        alert.addButton(withTitle: localized("Cancel"))
         if alert.runModal() == .alertFirstButtonReturn {
             Preferences.showMenuBarIcon = false
             refresh()

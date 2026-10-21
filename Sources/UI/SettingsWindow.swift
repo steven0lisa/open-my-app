@@ -19,9 +19,9 @@ final class SettingsWindowController: NSObject {
                 )
             )
             let window = NSWindow(contentViewController: hosting)
-            window.title = "OpenMyApp 设置"
+            window.title = NSLocalizedString("OpenMyApp Settings", comment: "settings window title")
             window.styleMask = [.titled, .closable]
-            window.setContentSize(NSSize(width: 520, height: 400))
+            window.setContentSize(NSSize(width: 520, height: 440))
             window.isReleasedWhenClosed = false
             window.center()
             self.window = window
@@ -34,48 +34,121 @@ final class SettingsWindowController: NSObject {
 struct SettingsView: View {
     var onPreferenceChanged: () -> Void
 
+    @StateObject private var updater = UpdateChecker()
     @State private var showMenuBarIcon = Preferences.showMenuBarIcon
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginItemsError: String?
 
     var body: some View {
         Form {
-            Section("通用") {
-                Toggle("登录时自动启动", isOn: $launchAtLogin)
+            Section(NSLocalizedString("General", comment: "settings section")) {
+                Toggle(NSLocalizedString("Launch at Login", comment: "setting"), isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, enabled in
                         setLoginItem(enabled: enabled)
                     }
-                Toggle("显示菜单栏图标", isOn: $showMenuBarIcon)
+                Toggle(NSLocalizedString("Show Menu Bar Icon", comment: "setting"), isOn: $showMenuBarIcon)
                     .onChange(of: showMenuBarIcon) { _, enabled in
                         Preferences.showMenuBarIcon = enabled
                         onPreferenceChanged()
                     }
                 if !showMenuBarIcon {
-                    Text("菜单栏图标已隐藏：随时按 ⌥Space 唤出搜索框；点搜索框右上角的 ⚙ 可回到这里重新开启。")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    Text(String(
+                        format: NSLocalizedString(
+                            "Menu bar icon is hidden: summon the panel with %@ and click the ⚙ button to reopen Settings.",
+                            comment: ""
+                        ),
+                        Preferences.hotkeyDisplay
+                    ))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                 }
                 if let loginItemsError {
-                    Text("登录项设置失败：\(loginItemsError)")
-                        .font(.footnote)
-                        .foregroundStyle(.red)
+                    Text(String(
+                        format: NSLocalizedString("Failed to update login items: %@", comment: ""),
+                        loginItemsError
+                    ))
+                    .font(.footnote)
+                    .foregroundStyle(.red)
                 }
             }
 
-            Section("快捷键") {
+            Section(NSLocalizedString("Hotkey", comment: "settings section")) {
                 HotkeyRecorderButton { onPreferenceChanged() }
-                LabeledContent("结果间移动", value: "↑ / ↓")
-                LabeledContent("打开选中项", value: "↩")
-                LabeledContent("隐藏面板", value: "Esc / 点击面板外")
+                LabeledContent(NSLocalizedString("Move Between Results", comment: "shortcut"), value: "↑ / ↓")
+                LabeledContent(NSLocalizedString("Open Selected Item", comment: "shortcut"), value: "↩")
+                LabeledContent(NSLocalizedString("Dismiss Panel", comment: "shortcut"), value: NSLocalizedString("Esc / click outside", comment: "shortcut"))
             }
 
-            Section("关于") {
-                LabeledContent("版本", value: Self.appVersion)
-                LabeledContent("简介", value: "极简应用启动器：拼音搜索 App 与系统设置")
+            Section(NSLocalizedString("About", comment: "settings section")) {
+                LabeledContent(NSLocalizedString("Version", comment: "about"), value: Self.appVersion)
+                LabeledContent(
+                    NSLocalizedString("Tagline", comment: "about"),
+                    value: NSLocalizedString("A minimalist launcher: pinyin search for apps & System Settings", comment: "")
+                )
+                updateRow
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 400)
+        .frame(width: 520, height: 440)
+    }
+
+    // MARK: - 更新
+
+    @ViewBuilder
+    private var updateRow: some View {
+        HStack(spacing: 10) {
+            switch updater.state {
+            case .idle, .upToDate, .failed:
+                Button(NSLocalizedString("Check for Updates", comment: "update")) {
+                    Task { await updater.checkForUpdates() }
+                }
+            case .checking:
+                ProgressView()
+                    .controlSize(.small)
+                Text(NSLocalizedString("Checking…", comment: "update"))
+                    .foregroundStyle(.secondary)
+            case .available(let version):
+                Text(String(
+                    format: NSLocalizedString("New version %@ available", comment: "update"),
+                    version
+                ))
+                Button(NSLocalizedString("Download & Install", comment: "update")) {
+                    Task { await updater.downloadAndInstall() }
+                }
+                .buttonStyle(.borderedProminent)
+            case .downloading(let fraction):
+                ProgressView(value: fraction)
+                    .frame(maxWidth: 160)
+                Text(String(
+                    format: NSLocalizedString("Downloading… %d%%", comment: "update"),
+                    Int(fraction * 100)
+                ))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+            case .installing:
+                ProgressView()
+                    .controlSize(.small)
+                Text(NSLocalizedString("Installing… the app will restart", comment: "update"))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+
+            switch updater.state {
+            case .upToDate:
+                Text(NSLocalizedString("You're up to date", comment: "update"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            case .failed(let message):
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+            default:
+                EmptyView()
+            }
+        }
+        .padding(.vertical, 2)
     }
 
     private static var appVersion: String {
@@ -99,7 +172,7 @@ struct SettingsView: View {
 
 /// 自定义快捷键录制控件：点击进入录制态，下一个组合键即生效；Esc 取消
 private struct HotkeyRecorderButton: View {
-    /// 录制成功后回调（keyCode, Carbon 修饰键掩码）
+    /// 录制成功后回调
     var onChange: () -> Void
 
     @State private var isRecording = false
@@ -112,18 +185,18 @@ private struct HotkeyRecorderButton: View {
                 Button {
                     isRecording = true
                 } label: {
-                    Text(isRecording ? "按下新快捷键…" : Preferences.hotkeyDisplay)
+                    Text(isRecording ? NSLocalizedString("Press a new shortcut…", comment: "hotkey recorder") : Preferences.hotkeyDisplay)
                         .monospaced()
                         .frame(minWidth: 90)
                 }
                 .buttonStyle(.bordered)
                 .disabled(isRecording)
             } label: {
-                Text("唤出 / 隐藏搜索框")
+                Text(NSLocalizedString("Summon / Dismiss Panel", comment: "shortcut"))
             }
 
             if isRecording {
-                Text("按新组合键即生效，Esc 取消")
+                Text(NSLocalizedString("Press the new combination to apply, Esc to cancel", comment: "hotkey recorder"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else if let errorMessage {
@@ -166,7 +239,7 @@ private struct HotkeyRecorderButton: View {
         let mask = HotkeyDisplay.carbonMask(from: event.modifierFlags)
         let hasRequiredModifier = mask & UInt32(cmdKey | optionKey | controlKey) != 0
         guard hasRequiredModifier else {
-            errorMessage = "需包含 ⌘ / ⌥ / ⌃ 至少一个修饰键"
+            errorMessage = NSLocalizedString("Include at least one of ⌘ / ⌥ / ⌃", comment: "hotkey recorder")
             return nil
         }
 

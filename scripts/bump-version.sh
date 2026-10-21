@@ -26,9 +26,9 @@ esac
 NEW_VERSION="$MAJOR.$MINOR.$PATCH"
 echo "$NEW_VERSION" > "$VERSION_FILE"
 
-# 同步 package.json
+# 同步 package.json 顶层 version（用 2 空格缩进锚定，避免误改 releaseHistory 里同版本号的条目）
 if [ -f "$PROJECT_DIR/package.json" ]; then
-    sed -i '' "s/\"version\": \"$CURRENT\"/\"version\": \"$NEW_VERSION\"/" "$PROJECT_DIR/package.json"
+    sed -i '' "s/^  \"version\": \"$CURRENT\"/  \"version\": \"$NEW_VERSION\"/" "$PROJECT_DIR/package.json"
 fi
 
 # 同步 project.yml

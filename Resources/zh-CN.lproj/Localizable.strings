@@ -1,0 +1,53 @@
+/* OpenMyApp 简体中文界面文案；key 为英文基准文案（开发区域 = en） */
+
+/* LauncherView */
+"Search apps or System Settings…" = "搜索应用程序或系统设置…";
+"No results" = "没有匹配的结果";
+
+/* ResultKind */
+"App" = "应用程序";
+"System Setting" = "系统设置";
+
+/* StatusBarController */
+"Open Search Panel (%@)" = "打开搜索框（%@）";
+"Settings…" = "设置…";
+"Hide Menu Bar Icon" = "隐藏菜单栏图标";
+"Quit OpenMyApp" = "退出 OpenMyApp";
+"Hide Menu Bar Icon?" = "隐藏菜单栏图标？";
+"You can still summon the panel with %@ anytime. Re-enable it from the ⚙ Settings button in the panel." = "隐藏后仍可随时按 %@ 唤出搜索框；点搜索框右上角的 ⚙ 可重新开启菜单栏图标。";
+"Hide" = "隐藏";
+"Cancel" = "取消";
+
+/* SettingsWindow */
+"OpenMyApp Settings" = "OpenMyApp 设置";
+"General" = "通用";
+"Launch at Login" = "登录时自动启动";
+"Show Menu Bar Icon" = "显示菜单栏图标";
+"Menu bar icon is hidden: summon the panel with %@ and click the ⚙ button to reopen Settings." = "菜单栏图标已隐藏：随时按 %@ 唤出搜索框，点搜索框右上角的 ⚙ 可回到这里重新开启。";
+"Failed to update login items: %@" = "登录项设置失败：%@";
+"Hotkey" = "快捷键";
+"Summon / Dismiss Panel" = "唤出 / 隐藏搜索框";
+"Move Between Results" = "结果间移动";
+"Open Selected Item" = "打开选中项";
+"Dismiss Panel" = "隐藏面板";
+"Esc / click outside" = "Esc / 点击面板外";
+"About" = "关于";
+"Version" = "版本";
+"Tagline" = "简介";
+"A minimalist launcher: pinyin search for apps & System Settings" = "极简应用启动器：拼音搜索 App 与系统设置";
+"Press a new shortcut…" = "按下新快捷键…";
+"Press the new combination to apply, Esc to cancel" = "按新组合键即生效，Esc 取消";
+"Include at least one of ⌘ / ⌥ / ⌃" = "需包含 ⌘ / ⌥ / ⌃ 至少一个修饰键";
+
+/* UpdateChecker / 设置页更新区 */
+"Check for Updates" = "检查更新";
+"Checking…" = "检查中…";
+"You're up to date" = "当前已是最新版本";
+"New version %@ available" = "发现新版本 %@";
+"Download & Install" = "下载并安装";
+"Downloading… %d%%" = "正在下载… %d%%";
+"Installing… the app will restart" = "正在安装…应用将自动重启";
+"Update failed: %@" = "更新失败：%@";
+"Unexpected response from GitHub" = "GitHub 返回了意外响应";
+"No DMG asset in the latest release" = "最新 Release 中没有 DMG 安装包";
+"No app bundle found inside the DMG" = "DMG 内未找到应用包";

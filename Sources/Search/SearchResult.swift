@@ -7,8 +7,8 @@ enum ResultKind {
 
     var label: String {
         switch self {
-        case .application: return "应用程序"
-        case .systemSetting: return "系统设置"
+        case .application: return NSLocalizedString("App", comment: "result kind")
+        case .systemSetting: return NSLocalizedString("System Setting", comment: "result kind")
         }
     }
 }
