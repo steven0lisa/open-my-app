@@ -17,8 +17,9 @@ warn=0
 
 scan() {
     local label="$1" pattern="$2" level="$3" hits
-    # 统一过滤 HiDPI 图片后缀（icon@2x.png）造成的邮箱正则误报
-    hits=$(grep -rniE "$pattern" "${EXCLUDES[@]}" . 2>/dev/null | grep -viE '@[0-9]x\.png' || true)
+    # 统一过滤两类误报：HiDPI 图片后缀（icon@2x.png）造成的邮箱命中；
+    # GitHub noreply 邮箱（为公开署名设计的隐私地址，文档中合法出现）
+    hits=$(grep -rniE "$pattern" "${EXCLUDES[@]}" . 2>/dev/null | grep -viE '@[0-9]x\.png|users\.noreply\.github\.com' || true)
     if [ -n "$hits" ]; then
         if [ "$level" = "FAIL" ]; then fail=1; else warn=1; fi
         echo "[$level] $label:"
