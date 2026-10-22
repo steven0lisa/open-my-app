@@ -87,6 +87,8 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
 
 ## Git 与发布流程
 
+> 本仓库的发版流水线方案沉淀在 general-staff：**GS-SOL-004 v1.0**（`data/solutions/macos-github-release-pipeline/`，含 4 个通用模板与踩坑清单；脚本演进后须回写该模板并递增其版本号）。
+
 - **git 身份必须是 GitHub noreply 邮箱**（本仓库已配置 `431787+steven0lisa@users.noreply.github.com`），禁止公司邮箱；提交后自检：`git log -1 --format='%an <%ae>'`。
 - 版本号唯一来源是 `VERSION`，由 `scripts/bump-version.sh patch|minor|major` 同步到 `package.json` 与 `project.yml`；发版日志写在 `package.json` 的 `releaseHistory`。
 - 发版：bump → 提交 → `git tag vx.y.z` → 推送，GitHub Actions 自动构建 DMG 并发 Release（构建前有敏感扫描兜底）。
@@ -98,6 +100,7 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
 ## 敏感信息规则（强制）
 
 - **推送 GitHub 前必须跑 `./scripts/check-sensitive.sh`**：FAIL 项（凭据 / 公司名 / 内网域名 / webhook / 带密码连接串）必须删除或替换为占位符；WARN 项（邮箱 / 本机绝对路径 / 真实姓名 / 手机号）人工确认。
+- **公司/雇主专属敏感词不得硬编码在本仓库任何文件里**（公开仓库暴露雇主信息，check-sensitive.sh 自身的泄密就是这么发生的——它曾把自己排除在扫描外）。清单外置在仓库外：`~/.zcode/secrets/sensitive-local-patterns.txt`（本机全局，跨项目共用；一行一个 ERE，# 为注释），脚本自动加载按 FAIL 级别扫描；备选位置 `scripts/sensitive-local.txt`（已 gitignore）。清单只在本地存在、CI 拿不到——公司名泄露的防线是本地推送前扫描。
 - CI（release.yml）在构建前会再跑一次同样的扫描作为兜底。
 - `.v2c/`、`.findings/`、`build/`、`dist/`、`*.xcodeproj/` 等本地目录已入 `.gitignore`，不要无过目直接提交。
 
