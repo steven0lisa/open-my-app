@@ -1,8 +1,15 @@
 {
   "name": "open-my-app",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
+    {
+      "version": "1.3.1",
+      "date": "2026-10-22",
+      "changes": [
+        "Normal mode no longer shows recent clipboard items when the panel opens with an empty query; summoning the panel starts clean again, clipboard browsing stays in clipboard mode (⌘⇧V)"
+      ]
+    },
     {
       "version": "1.3.0",
       "date": "2026-10-22",

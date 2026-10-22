@@ -117,9 +117,14 @@ final class LauncherModel: ObservableObject {
         if searchMode == .all, !trimmed.isEmpty {
             appResults = Array(engine.search(query, limit: Self.appResultLimit))
         }
-        let clipLimit = trimmed.isEmpty ? ClipboardLimits.browseCount : Self.clipResultLimit
-        // 先搜内存缓存（同步、微秒级），数据库结果异步追加
-        let clipResults = (clipboard?.searchMemory(trimmed, limit: clipLimit) ?? []).map(Self.makeClipboardResult)
+        // 空查询只在剪切板模式下浏览最近历史；普通模式保持原来的干净面板
+        // （⌥Space 唤出就闪出最近剪贴内容既扰人也有泄露风险）
+        let browseMode = searchMode == .clipboard && trimmed.isEmpty
+        let clipLimit = browseMode ? ClipboardLimits.browseCount : Self.clipResultLimit
+        var clipResults: [SearchResult] = []
+        if searchMode == .clipboard || !trimmed.isEmpty {
+            clipResults = (clipboard?.searchMemory(trimmed, limit: clipLimit) ?? []).map(Self.makeClipboardResult)
+        }
         results = appResults + clipResults
         if !results.contains(where: { $0.id == selectedID }) {
             selectedID = results.first?.id
