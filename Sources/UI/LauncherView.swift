@@ -52,7 +52,9 @@ struct LauncherView: View {
     private var searchRow: some View {
         HStack(spacing: 12) {
             TextField(
-                NSLocalizedString("Search apps or System Settings…", comment: "search placeholder"),
+                model.searchMode == .clipboard
+                    ? NSLocalizedString("Search clipboard history…", comment: "search placeholder (clipboard mode)")
+                    : NSLocalizedString("Search apps or System Settings…", comment: "search placeholder"),
                 text: $model.query
             )
                 .textFieldStyle(.plain)
@@ -180,6 +182,34 @@ private struct ResultRow: View {
             return NSWorkspace.shared.icon(forFile: "/System/Applications/Utilities/Terminal.app")
         case .finder:
             return NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
+        case .clipboardText:
+            return NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: result.title)
+        case .clipboardImage:
+            return clipboardImage(for: result)
+        case .clipboardFile:
+            guard let path = result.clipItem?.filePath else { return nil }
+            let icon = NSWorkspace.shared.icon(forFile: path)
+            icon.size = NSSize(width: 32, height: 32)
+            return icon
         }
+    }
+
+    /// 剪切板缩略图：优先缩略图文件，缺失（小图）退回原图；NSCache 限量缓存，
+    /// 只有可见行触发解码。countLimit 16：可见 ≤9 行 + 翻页余量，每张解码后
+    /// 最多 ~770KB（缩略图策略保证原图 ≤880px），缓存过多只会白占内存
+    private static let imageCache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 16
+        return cache
+    }()
+
+    private static func clipboardImage(for result: SearchResult) -> NSImage? {
+        guard let item = result.clipItem,
+              let path = item.thumbPath ?? item.filePath else { return nil }
+        if let cached = imageCache.object(forKey: path as NSString) { return cached }
+        guard let image = NSImage(contentsOfFile: path) else { return nil }
+        image.size = NSSize(width: 32, height: 32)
+        imageCache.setObject(image, forKey: path as NSString)
+        return image
     }
 }

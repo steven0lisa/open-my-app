@@ -7,6 +7,20 @@
 /* ResultKind */
 "App" = "应用程序";
 "System Setting" = "系统设置";
+"Text" = "文本";
+"Image" = "图片";
+"File" = "文件";
+
+/* 剪切板 */
+"Search clipboard history…" = "搜索剪切板历史…";
+"Image · %@" = "图片 · %@";
+"Open Clipboard (%@)" = "打开剪切板（%@）";
+"Clipboard" = "剪切板";
+"Open Clipboard Mode" = "打开剪切板模式";
+"Auto-paste enabled: selecting a clipboard item pastes it into the frontmost app." = "自动粘贴已开启：选中剪切板记录后会自动粘贴到前台应用。";
+"Auto-paste needs Accessibility permission; until granted, selecting only copies to the clipboard." = "自动粘贴需要辅助功能权限；未授权时选中记录仅复制到剪切板。";
+"Grant Accessibility Permission…" = "去授权辅助功能…";
+"Copied text, images and files are stored locally in SQLite. Low-usage records older than a week are cleaned up automatically." = "复制的文本、图片与文件仅存本地 SQLite；超过一周的低频记录会自动清理。";
 
 /* 命令模式（t / o 前缀） */
 "Open in Terminal: %@" = "使用 Terminal 打开 %@";

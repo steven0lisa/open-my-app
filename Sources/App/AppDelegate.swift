@@ -7,9 +7,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsController: SettingsWindowController?
     private var hotkeyManager: HotkeyManager?
     private var directoryWatcher: AppDirectoryWatcher?
+    /// 剪切板历史：常驻监听系统粘贴板（后台 1s 轮询 changeCount）
+    private let clipboardManager = ClipboardManager()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        panelController = PanelController()
+        clipboardManager.start()
+
+        panelController = PanelController(clipboardManager: clipboardManager)
         panelController?.onOpenSettings = { [weak self] in self?.showSettings() }
 
         settingsController = SettingsWindowController()
@@ -21,14 +25,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusBarController = StatusBarController()
         statusBarController?.onShowPanel = { [weak self] in self?.panelController?.togglePanel() }
+        statusBarController?.onShowClipboardPanel = { [weak self] in self?.panelController?.toggleClipboardPanel() }
         statusBarController?.onOpenSettings = { [weak self] in self?.showSettings() }
         statusBarController?.onQuit = { NSApp.terminate(nil) }
         statusBarController?.refresh()
 
         hotkeyManager = HotkeyManager()
-        hotkeyManager?.onToggle = { [weak self] in
+        hotkeyManager?.onAction = { [weak self] action in
             Task { @MainActor in
-                self?.panelController?.togglePanel()
+                guard let panelController = self?.panelController else { return }
+                switch action {
+                case .main:
+                    panelController.togglePanel()
+                case .clipboard:
+                    panelController.toggleClipboardPanel()
+                }
             }
         }
         hotkeyManager?.install()
@@ -44,6 +55,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // 启动即出现搜索框
         panelController?.showPanel()
+
+        // 真实环境验证辅助：OMA_DEBUG_MODE=clipboard 启动 1.5s 后切到剪切板模式
+        if ProcessInfo.processInfo.environment["OMA_DEBUG_MODE"] == "clipboard" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                self?.panelController?.showPanel(mode: .clipboard)
+            }
+        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

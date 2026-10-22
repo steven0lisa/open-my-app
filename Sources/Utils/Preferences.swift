@@ -8,6 +8,9 @@ enum Preferences {
     private static let usageLastKey = "usageLast"
     private static let hotkeyKeyCodeKey = "hotkeyKeyCode"
     private static let hotkeyCarbonMaskKey = "hotkeyCarbonMask"
+    private static let clipboardHotkeyKeyCodeKey = "clipboardHotkeyKeyCode"
+    private static let clipboardHotkeyCarbonMaskKey = "clipboardHotkeyCarbonMask"
+    private static let clipboardLastCleanupKey = "clipboardLastCleanupAt"
 
     // 使用频次缓存在内存：UserDefaults.dictionary(forKey:) 每次调用都会重新
     // 反序列化 plist，而打分热路径对每个索引条目都要读两次，必须走内存
@@ -37,6 +40,29 @@ enum Preferences {
     /// 当前快捷键的展示文本，如 "⌥Space"
     static var hotkeyDisplay: String {
         HotkeyDisplay.string(keyCode: UInt32(hotkeyKeyCode), carbonMask: UInt32(hotkeyCarbonMask))
+    }
+
+    /// 剪切板模式快捷键主键（默认 V，配合 ⌘⇧）
+    static var clipboardHotkeyKeyCode: Int {
+        get { UserDefaults.standard.object(forKey: clipboardHotkeyKeyCodeKey) as? Int ?? Int(kVK_ANSI_V) }
+        set { UserDefaults.standard.set(newValue, forKey: clipboardHotkeyKeyCodeKey) }
+    }
+
+    /// 剪切板模式快捷键修饰键（Carbon 掩码，默认 ⌘⇧）
+    static var clipboardHotkeyCarbonMask: Int {
+        get { UserDefaults.standard.object(forKey: clipboardHotkeyCarbonMaskKey) as? Int ?? Int(cmdKey | shiftKey) }
+        set { UserDefaults.standard.set(newValue, forKey: clipboardHotkeyCarbonMaskKey) }
+    }
+
+    /// 剪切板模式快捷键的展示文本，如 "⌘⇧V"
+    static var clipboardHotkeyDisplay: String {
+        HotkeyDisplay.string(keyCode: UInt32(clipboardHotkeyKeyCode), carbonMask: UInt32(clipboardHotkeyCarbonMask))
+    }
+
+    /// 上次剪切板清理时间（epoch 秒；0 = 从未清理）
+    static var clipboardLastCleanupAt: TimeInterval {
+        get { UserDefaults.standard.object(forKey: clipboardLastCleanupKey) as? TimeInterval ?? 0 }
+        set { UserDefaults.standard.set(newValue, forKey: clipboardLastCleanupKey) }
     }
 
     static func usageCount(for id: String) -> Int {

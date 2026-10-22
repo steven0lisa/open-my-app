@@ -23,14 +23,17 @@ final class PanelController: NSObject, NSWindowDelegate {
 
     private var panel: NSPanel?
     private let model = LauncherModel()
+    private let clipboard: ClipboardManager
     private var globalClickMonitor: Any?
     private var localClickMonitor: Any?
     private var keyDownMonitor: Any?
     /// 面板变高（结果增多）时保持顶边不动
     private var pinnedTopY: CGFloat = 0
 
-    override init() {
+    init(clipboardManager: ClipboardManager) {
+        self.clipboard = clipboardManager
         super.init()
+        model.clipboard = clipboardManager
         buildPanel()
         setupModelCallbacks()
         // 事件监听不在此安装：showPanel 时安装、hidePanel 时卸载，
@@ -39,13 +42,27 @@ final class PanelController: NSObject, NSWindowDelegate {
 
     // MARK: - 显示 / 隐藏
 
+    /// 主快捷键：普通模式下隐藏；剪切板模式下切回普通模式；隐藏时唤出普通面板
     func togglePanel() {
-        isVisible ? hidePanel() : showPanel()
+        if isVisible {
+            if model.searchMode == .clipboard { showPanel(mode: .all) } else { hidePanel() }
+        } else {
+            showPanel(mode: .all)
+        }
     }
 
-    func showPanel() {
+    /// 剪切板快捷键：剪切板模式下隐藏；普通模式下切到剪切板模式；隐藏时唤出剪切板面板
+    func toggleClipboardPanel() {
+        if isVisible {
+            if model.searchMode == .clipboard { hidePanel() } else { showPanel(mode: .clipboard) }
+        } else {
+            showPanel(mode: .clipboard)
+        }
+    }
+
+    func showPanel(mode: LauncherModel.SearchMode = .all) {
         guard let panel else { return }
-        model.prepare()
+        model.prepare(mode: mode)
         positionPanel()
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
@@ -168,6 +185,13 @@ final class PanelController: NSObject, NSWindowDelegate {
             case "w":
                 hidePanel()
                 return nil
+            case "a":
+                // 全选：直接驱动 field editor，不依赖 responder 链转发
+                if let editor = panel?.firstResponder as? NSTextView {
+                    editor.selectAll(nil)
+                    return nil
+                }
+                return event
             case ",":
                 hidePanel()
                 onOpenSettings?()
@@ -237,6 +261,11 @@ final class PanelController: NSObject, NSWindowDelegate {
                 }
                 Preferences.recordUsage(for: result.id)
             }
+        case .clipboardText, .clipboardImage, .clipboardFile:
+            guard let item = result.clipItem else { break }
+            hidePanel()
+            clipboard.activate(item)
+            return
         }
         hidePanel()
     }

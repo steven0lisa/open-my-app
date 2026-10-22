@@ -3,6 +3,16 @@ import Foundation
 /// 搜索框视图模型：持有查询状态与结果列表，桥接 SearchEngine 与 UI
 @MainActor
 final class LauncherModel: ObservableObject {
+    /// 面板搜索模式：普通（app+设置+剪切板）与剪切板（只搜剪切板历史）
+    enum SearchMode {
+        case all
+        case clipboard
+    }
+
+    /// 普通模式 app 结果上限（剪切板结果同限，共 6 行，双源都拿到即止）
+    static let appResultLimit = 3
+    static let clipResultLimit = 3
+
     /// focusToken 变化用于在面板重新显示时让输入框重新获得焦点
     @Published var focusToken = 0
     @Published var query: String = "" {
@@ -12,9 +22,12 @@ final class LauncherModel: ObservableObject {
     }
     @Published private(set) var results: [SearchResult] = []
     @Published var selectedID: String?
+    private(set) var searchMode: SearchMode = .all
 
     var onActivate: ((SearchResult) -> Void)?
     var onOpenSettings: (() -> Void)?
+    /// 剪切板数据源（PanelController 注入；剪切板功能入口）
+    weak var clipboard: ClipboardManager?
 
     private let engine = SearchEngine()
     private let fileSearch = FileSearchService()
@@ -22,11 +35,23 @@ final class LauncherModel: ObservableObject {
     private var commandWorkItem: DispatchWorkItem?
     /// 命令搜索代次：过期回调直接丢弃
     private var commandGeneration = 0
+    /// 数据库剪切板搜索代次：输入变化后过期回调直接丢弃
+    private var clipboardGeneration = 0
 
-    /// 面板每次显示时调用：重扫应用目录 + 刷新焦点
-    func prepare() {
+    /// 面板每次显示时调用：切换模式、清空搜索框（打开即干净面板）、刷新焦点与索引
+    func prepare(mode: SearchMode) {
+        searchMode = mode
+        commandWorkItem?.cancel()
+        fileSearch.cancel()
+        selectedID = nil
+        if query.isEmpty {
+            // 空查询不触发 didSet，直接刷新（剪切板模式要立即展示最近历史）
+            refresh()
+        } else {
+            query = ""
+        }
         focusToken += 1
-        rescan()
+        if mode == .all { rescan() }
     }
 
     /// 后台重扫索引并刷新结果；force=true 用于目录监听触发的强制刷新
@@ -80,14 +105,73 @@ final class LauncherModel: ObservableObject {
     }
 
     func refresh() {
-        if let command = Self.parseCommand(query) {
+        // t/o 命令只在普通模式生效，剪切板模式是纯历史搜索
+        if searchMode == .all, let command = Self.parseCommand(query) {
             runCommand(command)
             return
         }
         fileSearch.cancel()
-        results = engine.search(query)
-        if results.contains(where: { $0.id == selectedID }) { return }
-        selectedID = results.first?.id
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+
+        var appResults: [SearchResult] = []
+        if searchMode == .all, !trimmed.isEmpty {
+            appResults = Array(engine.search(query, limit: Self.appResultLimit))
+        }
+        let clipLimit = trimmed.isEmpty ? ClipboardLimits.browseCount : Self.clipResultLimit
+        // 先搜内存缓存（同步、微秒级），数据库结果异步追加
+        let clipResults = (clipboard?.searchMemory(trimmed, limit: clipLimit) ?? []).map(Self.makeClipboardResult)
+        results = appResults + clipResults
+        if !results.contains(where: { $0.id == selectedID }) {
+            selectedID = results.first?.id
+        }
+
+        guard !trimmed.isEmpty, let clipboard else { return }
+        clipboardGeneration += 1
+        let generation = clipboardGeneration
+        let knownIDs = Set(clipResults.map(\.id))
+        let tokens = trimmed.split(whereSeparator: \.isWhitespace).map(String.init)
+        clipboard.searchDatabase(tokens: tokens, limit: clipLimit * 2) { [weak self] items in
+            guard let self, self.clipboardGeneration == generation else { return }
+            let extras = items
+                .filter { !knownIDs.contains("clip:\($0.id)") }
+                .prefix(clipLimit)
+            guard !extras.isEmpty else { return }
+            self.results = appResults + clipResults + extras.map(Self.makeClipboardResult)
+            if !self.results.contains(where: { $0.id == self.selectedID }) {
+                self.selectedID = self.results.first?.id
+            }
+        }
+    }
+
+    // MARK: - 剪切板结果
+
+    private static func makeClipboardResult(_ item: ClipboardItem) -> SearchResult {
+        let kind: ResultKind
+        let title: String
+        switch item.type {
+        case .text:
+            kind = .clipboardText
+            let line = item.titleLine
+            title = line.isEmpty ? "…" : line
+        case .image:
+            kind = .clipboardImage
+            let size = ByteCountFormatter.string(fromByteCount: Int64(item.byteSize), countStyle: .file)
+            title = String(format: NSLocalizedString("Image · %@", comment: "clipboard image row"), size)
+        case .file:
+            kind = .clipboardFile
+            title = item.titleLine
+        }
+        return SearchResult(
+            id: "clip:\(item.id)",
+            title: title,
+            alias: "",
+            kind: kind,
+            appPath: nil,
+            settingAnchor: nil,
+            symbolName: nil,
+            openPath: item.type == .file ? item.filePath : nil,
+            clipItem: item
+        )
     }
 
     private func runCommand(_ command: (mode: CommandMode, keyword: String)) {
@@ -122,7 +206,8 @@ final class LauncherModel: ObservableObject {
                     appPath: nil,
                     settingAnchor: nil,
                     symbolName: nil,
-                    openPath: hit.path
+                    openPath: hit.path,
+                    clipItem: nil
                 )
             case .finder:
                 return SearchResult(
@@ -133,7 +218,8 @@ final class LauncherModel: ObservableObject {
                     appPath: nil,
                     settingAnchor: nil,
                     symbolName: nil,
-                    openPath: hit.path
+                    openPath: hit.path,
+                    clipItem: nil
                 )
             }
         }

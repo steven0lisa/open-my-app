@@ -4,6 +4,7 @@ import AppKit
 @MainActor
 final class StatusBarController: NSObject {
     var onShowPanel: (() -> Void)?
+    var onShowClipboardPanel: (() -> Void)?
     var onOpenSettings: (() -> Void)?
     var onQuit: (() -> Void)?
 
@@ -49,6 +50,11 @@ final class StatusBarController: NSObject {
             Preferences.hotkeyDisplay
         )
         menu.addItem(NSMenuItem(title: showTitle, action: #selector(showPanelClicked), keyEquivalent: ""))
+        let clipboardTitle = String(
+            format: localized("Open Clipboard (%@)"),
+            Preferences.clipboardHotkeyDisplay
+        )
+        menu.addItem(NSMenuItem(title: clipboardTitle, action: #selector(showClipboardClicked), keyEquivalent: ""))
 
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: localized("Settings…"), action: #selector(settingsClicked), keyEquivalent: ""))
@@ -63,6 +69,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func showPanelClicked() { onShowPanel?() }
+    @objc private func showClipboardClicked() { onShowClipboardPanel?() }
     @objc private func settingsClicked() { onOpenSettings?() }
     @objc private func quitClicked() { onQuit?() }
 

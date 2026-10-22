@@ -1,8 +1,20 @@
 {
   "name": "open-my-app",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
+    {
+      "version": "1.3.0",
+      "date": "2026-10-22",
+      "changes": [
+        "Clipboard history: every copy (text, images, files) is captured into a local SQLite database; large texts and images are stored as files with references, duplicates merge into one entry",
+        "Clipboard hits appear in search results (up to 3 per source) with instant in-memory matching plus async full-text search (FTS5, whitespace-split tokens, case-insensitive)",
+        "Pressing Return on a clipboard item copies it back and auto-pastes into the frontmost app (asks for Accessibility permission; copy-only until granted)",
+        "New clipboard-only mode on ⌘⇧V (customizable) showing recent records; low-usage records older than a week are cleaned up automatically",
+        "Large images get fast downsampled thumbnails for the results list",
+        "The search box is cleared every time the panel opens, and ⌘A now selects all text"
+      ]
+    },
     {
       "version": "1.2.3",
       "date": "2026-10-21",

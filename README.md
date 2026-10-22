@@ -18,6 +18,8 @@ A Spotlight-style minimalist app launcher for macOS: hit ⌥Space to summon a fl
 - **Extremely low resource usage**: 0% CPU at idle (no timers, no polling; event monitors are mounted only while the panel is visible), ~29MB physical memory, <0.1ms per search
 - **Usage-based ranking**: frequently launched apps float to the top
 - **Terminal & Finder commands**: type `t <name>` (or `terminal <name>`) to open a matching folder in Terminal, `o <name>` (or `open <name>`) to open a file or folder in Finder (Spotlight-backed, home directory, top 5 hits, debounced)
+- **Clipboard history**: every copy (text, images, files from Finder) is captured into a local SQLite database. Search results mix in clipboard hits (top 3 per source); Return writes the item back to the clipboard and auto-pastes it into the frontmost app (asks for Accessibility permission, copy-only until granted). Large texts and images are stored as files with references in the database, big images get fast downsampled thumbnails, duplicates merge into one entry, and low-usage records older than a week are cleaned up daily. All local — nothing ever leaves the machine
+- **Clipboard mode**: ⌘⇧V (customizable) opens the panel in clipboard-only mode showing the most recent records; search matches across the in-memory cache first, then the full database (whitespace-split tokens, case-insensitive, FTS5-indexed full text)
 - **Bilingual UI**: English and 简体中文, follows the system language
 - **In-app updates**: Settings → Check for Updates downloads and installs new releases automatically
 - **Launch at login**: toggle in Settings (based on SMAppService)
@@ -28,9 +30,11 @@ A Spotlight-style minimalist app launcher for macOS: hit ⌥Space to summon a fl
 | Shortcut | Action |
 |----------|--------|
 | ⌥ Space (default, customizable in Settings) | Summon / dismiss the search panel |
+| ⌘⇧ V (default, customizable in Settings) | Open the panel in clipboard-only mode |
 | ↑ / ↓ | Move between results |
-| ↩ | Open the selected item (first hit by default) |
+| ↩ | Open the selected item (first hit by default); clipboard items are copied and auto-pasted |
 | Esc | Dismiss the panel and clear the query |
+| ⌘ A | Select all text in the search box |
 | ⌘ , | Open Settings |
 
 ## Requirements

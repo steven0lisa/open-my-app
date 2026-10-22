@@ -2,6 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 import SwiftUI
 import ServiceManagement
+import ApplicationServices
 
 /// 设置窗口控制器（懒创建、单例窗口）
 @MainActor
@@ -21,7 +22,7 @@ final class SettingsWindowController: NSObject {
             let window = NSWindow(contentViewController: hosting)
             window.title = NSLocalizedString("OpenMyApp Settings", comment: "settings window title")
             window.styleMask = [.titled, .closable]
-            window.setContentSize(NSSize(width: 520, height: 440))
+            window.setContentSize(NSSize(width: 520, height: 520))
             window.isReleasedWhenClosed = false
             window.center()
             self.window = window
@@ -38,6 +39,7 @@ struct SettingsView: View {
     @State private var showMenuBarIcon = Preferences.showMenuBarIcon
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginItemsError: String?
+    @State private var clipboardAXTrusted = false
 
     var body: some View {
         Form {
@@ -73,10 +75,50 @@ struct SettingsView: View {
             }
 
             Section(NSLocalizedString("Hotkey", comment: "settings section")) {
-                HotkeyRecorderButton { onPreferenceChanged() }
+                HotkeyRecorderButton(
+                    label: NSLocalizedString("Summon / Dismiss Panel", comment: "shortcut"),
+                    readDisplay: { Preferences.hotkeyDisplay },
+                    write: { keyCode, mask in
+                        Preferences.hotkeyKeyCode = keyCode
+                        Preferences.hotkeyCarbonMask = Int(mask)
+                    }
+                ) { onPreferenceChanged() }
+                HotkeyRecorderButton(
+                    label: NSLocalizedString("Open Clipboard Mode", comment: "shortcut"),
+                    readDisplay: { Preferences.clipboardHotkeyDisplay },
+                    write: { keyCode, mask in
+                        Preferences.clipboardHotkeyKeyCode = keyCode
+                        Preferences.clipboardHotkeyCarbonMask = Int(mask)
+                    }
+                ) { onPreferenceChanged() }
                 LabeledContent(NSLocalizedString("Move Between Results", comment: "shortcut"), value: "↑ / ↓")
                 LabeledContent(NSLocalizedString("Open Selected Item", comment: "shortcut"), value: "↩")
                 LabeledContent(NSLocalizedString("Dismiss Panel", comment: "shortcut"), value: NSLocalizedString("Esc / click outside", comment: "shortcut"))
+            }
+
+            Section(NSLocalizedString("Clipboard", comment: "settings section")) {
+                if clipboardAXTrusted {
+                    Label(
+                        NSLocalizedString("Auto-paste enabled: selecting a clipboard item pastes it into the frontmost app.", comment: "clipboard permission"),
+                        systemImage: "checkmark.circle.fill"
+                    )
+                    .foregroundStyle(.secondary)
+                } else {
+                    Label(
+                        NSLocalizedString("Auto-paste needs Accessibility permission; until granted, selecting only copies to the clipboard.", comment: "clipboard permission"),
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .foregroundStyle(.secondary)
+                    Button(NSLocalizedString("Grant Accessibility Permission…", comment: "clipboard permission")) {
+                        SystemSettingsCatalog.open(anchor: "com.apple.settings.privacy?Privacy_Accessibility")
+                    }
+                }
+                Text(NSLocalizedString(
+                    "Copied text, images and files are stored locally in SQLite. Low-usage records older than a week are cleaned up automatically.",
+                    comment: "clipboard footnote"
+                ))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
 
             Section(NSLocalizedString("About", comment: "settings section")) {
@@ -89,7 +131,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 440)
+        .frame(width: 520, height: 520)
+        .onAppear { clipboardAXTrusted = AXIsProcessTrusted() }
     }
 
     // MARK: - 更新
@@ -170,8 +213,12 @@ struct SettingsView: View {
     }
 }
 
-/// 自定义快捷键录制控件：点击进入录制态，下一个组合键即生效；Esc 取消
+/// 自定义快捷键录制控件：点击进入录制态，下一个组合键即生效；Esc 取消。
+/// 通过 readDisplay / write 闭包绑定任意一组快捷键偏好（主热键 / 剪切板热键）
 private struct HotkeyRecorderButton: View {
+    let label: String
+    let readDisplay: () -> String
+    let write: (Int, UInt32) -> Void
     /// 录制成功后回调
     var onChange: () -> Void
 
@@ -185,14 +232,14 @@ private struct HotkeyRecorderButton: View {
                 Button {
                     isRecording = true
                 } label: {
-                    Text(isRecording ? NSLocalizedString("Press a new shortcut…", comment: "hotkey recorder") : Preferences.hotkeyDisplay)
+                    Text(isRecording ? NSLocalizedString("Press a new shortcut…", comment: "hotkey recorder") : readDisplay())
                         .monospaced()
                         .frame(minWidth: 90)
                 }
                 .buttonStyle(.bordered)
                 .disabled(isRecording)
             } label: {
-                Text(NSLocalizedString("Summon / Dismiss Panel", comment: "shortcut"))
+                Text(label)
             }
 
             if isRecording {
@@ -243,8 +290,7 @@ private struct HotkeyRecorderButton: View {
             return nil
         }
 
-        Preferences.hotkeyKeyCode = Int(event.keyCode)
-        Preferences.hotkeyCarbonMask = Int(mask)
+        write(Int(event.keyCode), mask)
         errorMessage = nil
         isRecording = false
         onChange()

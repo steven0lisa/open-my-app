@@ -37,6 +37,7 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
 | `UI/` | 界面 | `LauncherView` / `LauncherModel`（搜索框 + 结果列表）、`SettingsWindow`（含快捷键录制 `HotkeyRecorderButton`）、`VisualEffectBackground` |
 | `Hotkey/` | 全局快捷键 | `HotkeyManager`（Carbon RegisterEventHotKey，无需辅助功能权限）、`HotkeyDisplay`（keyCode+掩码 ↔ "⌥Space" 展示互转） |
 | `Update/` | 检查更新与自动安装 | `UpdateChecker`（GitHub Release 查询、DMG 下载、挂载安装、重启） |
+| `Clipboard/` | 剪切板历史 | `ClipboardManager`（粘贴板轮询/捕获/缩略图/回写+自动粘贴）、`ClipboardStore`（SQLite + FTS5 全文索引）、`ClipboardItem`（记录模型） |
 | `Search/` 补充 | 文件命令搜索 | `FileSearchService`（NSMetadataQuery 封装，t/o 命令） |
 | `Utils/` | 偏好与使用频次 | `Preferences`（UserDefaults 封装，使用频次带内存缓存） |
 
@@ -50,7 +51,8 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
 - `t` / `terminal` + 空格 + 关键字、`o` / `open` + 空格 + 关键字命令：Spotlight 元数据搜索 HOME 下的目录 / 文件，回车用 Terminal 打开目录、用 Finder 打开（文件则定位选中）；单词与完整词都触发（`parseCommand` 前缀表驱动，空格分隔防误触如 "opened"）。实现要点（实测踩过，勿回退）：结果主要经 `NSMetadataQueryGatheringProgress` 通知携带，`NSMetadataQueryDidUpdate` 只在 gathering 完成后索引变化时触发（且真名带 "Did"，手写 raw string 永远不触发）；`kMDItemPath` 在谓词中不受支持（静默忽略），Library 排除只能在 collect 内存侧做；没有结果数上限 API，limit 靠 collect 截断 + 攒满即 stop；输入侧 250ms 防抖，代次计数丢弃过期回调；范围限定 HOME 规避 TCC 弹窗；常见依赖库 / 构建目录（node_modules、target、DerivedData 等，清单见 `FileSearchService.excludedDirectoryNames`）在 collect 内存侧按路径组件排除；行标题按本批结果公共目录前缀省略为 `…/`（`LauncherModel.elidedPaths`，路径头部雷同时尾部才是区分点），完整路径放悬浮提示。
 - 界面双语（en / zh-CN）：开发区域为 en，key 即英文文案，`Resources/zh-CN.lproj/Localizable.strings` 存中文对照；新增 UI 字符串必须走 `NSLocalizedString` 并补中文条目。应用的搜索数据（中文名对照）与 UI 语言无关，始终强制取中文名做拼音匹配。
 - 检查更新双通道：api.github.com 优先（tag + asset 直链），403 / 共享出口 IP 限流时回退到 `github.com/.../releases/latest` 的 302 重定向提取 tag、按 `releases/download/<tag>/OpenMyApp-<ver>.dmg` 命名规律推导直链；安装 = hdiutil 挂载到临时目录 → 替换 /Applications → `open -n` 延迟重启。
-- 全局快捷键可在设置页自定义：偏好存 keyCode + Carbon 修饰键掩码（`Preferences.hotkeyKeyCode/hotkeyCarbonMask`），`HotkeyRecorderButton` 录制（要求 ⌘/⌥/⌃ 至少一个），变更经 `SettingsWindowController.onPreferenceChanged` 触发 `HotkeyManager.reRegister()` 与托盘刷新。
+- 全局快捷键可在设置页自定义：偏好存 keyCode + Carbon 修饰键掩码（`Preferences.hotkeyKeyCode/hotkeyCarbonMask`），`HotkeyRecorderButton` 录制（要求 ⌘/⌥/⌃ 至少一个），变更经 `SettingsWindowController.onPreferenceChanged` 触发 `HotkeyManager.reRegister()` 与托盘刷新。**双热键**：主热键（普通面板）+ 剪切板热键（默认 ⌘⇧V，`Preferences.clipboardHotkey*`），`HotkeyManager` 按 EventHotKeyID id 区分回调 `.main` / `.clipboard`。
+- 剪切板历史：`ClipboardManager` 在 workQueue 上 1s 轮询 `NSPasteboard.changeCount`（系统无变更通知，只能轮询；只读计数不读内容），变更后按 文件引用（Finder 复制，只存路径）> 图片（统一转 PNG）> 文本 的优先级捕获；>16KB 文本与图片落盘 `App Support/OpenMyApp/clipboard-files/`，DB 只存引用 + preview，去重靠 SHA256(content_hash)（同内容置顶、use_count 保留）。搜索 = 内存缓存（最近 200 条 + 预计算小写检索文本，主线程同步 0.16ms/次，见性能设计）+ SQLite 异步补齐（代次计数丢弃过期回调）：全部词元 ≥3 **字符**走 FTS5 trigram 索引（覆盖大文本全文，任意子串、ASCII 大小写折叠），否则 LIKE 兜底扫 preview/content/file_path；搜索词按空格分词 AND 匹配。普通模式 app 与剪切板各最多展示 3 条；剪切板模式（`SearchMode.clipboard`）只搜剪切板，空查询展示最近 9 条。回车 = 回写剪切板 + CGEvent 模拟 ⌘V 自动粘贴（需辅助功能权限，未授权降级仅复制并引导授权一次）；文件记录回写的是**路径文本**（产品决策）。自己的回写经 `suppressedChangeCount` 防轮询再捕获。每日清理：删「1~3 周前且使用 <2 次」的记录（含落盘文件与 FTS 行），熬过 3 周的记录必然用过 ≥2 次、永久保留。面板每次显示都清空搜索框并按模式重置（`LauncherModel.prepare(mode:)`）。
 
 ## 性能设计（勿回退）
 
@@ -62,6 +64,10 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
   - 使用频次缓存在 `Preferences` 静态内存（`UserDefaults.dictionary(forKey:)` 每次调用重新反序列化 plist，曾是打分热路径最大热点）
 - **扫描**：`rescanApps(force:)` 带 60s 保鲜期，唤出面板时期内直接跳过；FSEvents 回调走 `force: true`；扫描在 `utility` 优先级后台
 - **空闲功耗**：鼠标/键盘事件监听仅在面板可见时安装（`activateMonitors`），隐藏即卸载（`deactivateMonitors`；在监听回调内移除监听不安全，需 `DispatchQueue.main.async` 延迟一跳）。空闲时进程零定时器、零轮询、零事件源，仅剩零开销的 Carbon 热键与 FSEvents，实测空闲 CPU 0.0%
+- **剪切板搜索热路径**（2026-10-22 真实 2237 条数据基准，勿回退）：
+  - **内存缓存条目必须携带预计算的小写检索文本**（`ClipboardManager.MemoryEntry`，装载/新捕获时算一次）——若在搜索循环里对每条现算 `searchTextLower`（computed 属性每次 lowercased() 全文），200 条 × ≤16KB 内容 = 每次按键 ~1.9ms 主线程耗时 + MB 级临时字符串分配；预计算后 0.16ms（12 倍）
+  - DB 侧无需再优化：FTS 路径 0.1~0.22ms/次，LIKE 兜底 0.03~0.11ms/次，浏览查询 0.02ms/次（DB 8.2MB / content 总量 646KB 规模下）
+  - **缩略图双阈值**：字节数 >512KB **或** 像素尺寸 >880px 都生成缩略图——高分辨率截图 PNG 压缩率高（几十 KB 但上万像素），只按字节数判断会在行渲染时整图解码、几十 MB 解码内存一闪而过；缩略图 NSCache countLimit=16（可见 9 行 + 余量）
 
 ## 编码规则
 
@@ -103,3 +109,4 @@ nohup build/Build/Products/Debug/OpenMyApp.app/Contents/MacOS/OpenMyApp > /tmp/o
 5. **NSPanel 没有 `becomesKeyOnlyFirstResponder` 属性**（头文件只有 `becomesKeyOnlyIfNeeded`）。**borderless 面板默认不可成为 key window**，必须子类化重写 `canBecomeKey → true`（`LauncherPanel`），titled 面板则无此问题——但 titled + fullSizeContentView 有标题栏安全区空隙问题，见「关键设计」。`NSTextView.hasMarkedText()` 是**方法**不是属性（输入法组字判断）。
 6. **后台进程验证会被工具调用结束杀掉**：长驻验证用 `nohup … & disown` 脱离；GUI 自动化按键（osascript System Events）需先把应用 `set frontmost`，但其他应用抢焦点会导致按键落错目标——交互链路测试尽量在单次脚本内原子完成。
 7. **结果列表高度公式**：`PanelMetrics.listHeight` 必须等于 LazyVStack 实际内容高度（`count×46 + (count-1)×4 + 20` 上下 padding），算少 10pt 就会出现滚动条（实测踩过）。
+8. **FTS5 trigram 分词 ≥3 字符才成块**：判断查询走 FTS 索引还是 LIKE 兜底，要按**字符数**（`$0.count >= 3`）而不是 UTF-8 字节数——中文 2 字 = 6 字节，按字节判定会误入 trigram 路径，而 2 字短语凑不出 trigram、永远匹配不上（离线测试踩过）。macOS 系统 SQLite（3.45+）自带 FTS5，`import SQLite3` 即用无需 linking 配置；FTS5 表用普通表（非 contentless），删行直接 `DELETE FROM clip_fts WHERE rowid=?`。

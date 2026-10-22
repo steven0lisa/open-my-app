@@ -44,9 +44,11 @@ final class SearchEngine {
         return scanned.count
     }
 
-    func search(_ rawQuery: String) -> [SearchResult] {
+    /// limit：结果上限（普通模式 app 结果压缩到 3 条，为剪切板结果腾位）
+    func search(_ rawQuery: String, limit: Int? = nil) -> [SearchResult] {
         let query = rawQuery.trimmingCharacters(in: .whitespaces).lowercased()
         guard !query.isEmpty else { return [] }
+        let cap = limit ?? maxResults
 
         // 查询级预计算：ASCII 判定与字节序列每次搜索只做一次
         // （放在 isSubsequence 内做的话，每条目每次调用都要逐字符迭代一遍）
@@ -70,7 +72,7 @@ final class SearchEngine {
             if lhs.score != rhs.score { return lhs.score > rhs.score }
             return lhs.result.title < rhs.result.title
         }
-        return scored.prefix(maxResults).map(\.result)
+        return scored.prefix(cap).map(\.result)
     }
 
     // MARK: - Item 构建
@@ -86,7 +88,8 @@ final class SearchEngine {
             appPath: app.path,
             settingAnchor: nil,
             symbolName: nil,
-            openPath: nil
+            openPath: nil,
+            clipItem: nil
         )
         let zhPinyin = app.chineseName.flatMap { Pinyin.info(for: $0) }
         let displayNamePinyin = Pinyin.info(for: app.name)
@@ -112,7 +115,8 @@ final class SearchEngine {
             appPath: nil,
             settingAnchor: setting.anchor,
             symbolName: setting.symbolName,
-            openPath: nil
+            openPath: nil,
+            clipItem: nil
         )
         let pinyin = Pinyin.info(for: setting.zhName)
         return SearchItem(
@@ -198,7 +202,8 @@ final class SearchEngine {
     /// Z-Searcher（libswift_StringProcessing 的 ZSearcher），热点采样证实是
     /// 搜索热路径最大开销；也不要用 String.contains——走 Foundation 的
     /// locale 感知搜索，同样慢一个量级。
-    static func bytesContain(_ haystack: String, _ needle: String) -> Bool {
+    /// nonisolated：纯函数无状态，剪切板后台搜索也复用。
+    nonisolated static func bytesContain(_ haystack: String, _ needle: String) -> Bool {
         let hay = haystack.utf8
         let nee = needle.utf8
         guard !nee.isEmpty else { return true }
