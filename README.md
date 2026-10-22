@@ -22,7 +22,7 @@ A Spotlight-style minimalist app launcher for macOS: hit ⌥Space to summon a fl
 - **Clipboard mode**: ⌘⇧V (customizable) opens the panel in clipboard-only mode showing the most recent records; search matches across the in-memory cache first, then the full database (whitespace-split tokens, case-insensitive, FTS5-indexed full text)
 - **Bilingual UI**: English and 简体中文, follows the system language
 - **In-app updates**: Settings → Check for Updates downloads and installs new releases automatically
-- **Launch at login**: toggle in Settings (based on SMAppService)
+- **Launch at login**: enabled by default on first launch; turn it off anytime in Settings (based on SMAppService)
 - Fully local: **no network requests, no data collection**
 
 ## Keyboard Shortcuts

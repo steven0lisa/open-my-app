@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -11,6 +12,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let clipboardManager = ClipboardManager()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 默认开启登录自启动（一次性引导）：之后一切以设置页开关为准
+        if !Preferences.launchAtLoginAutoConfigured {
+            Preferences.launchAtLoginAutoConfigured = true
+            if SMAppService.mainApp.status != .enabled {
+                do {
+                    try SMAppService.mainApp.register()
+                    NSLog("[OpenMyApp] 已默认开启登录自启动")
+                } catch {
+                    NSLog("[OpenMyApp] 登录自启动注册失败: \(error.localizedDescription)")
+                }
+            }
+        }
+
         clipboardManager.start()
 
         panelController = PanelController(clipboardManager: clipboardManager)

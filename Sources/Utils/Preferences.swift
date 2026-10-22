@@ -11,6 +11,7 @@ enum Preferences {
     private static let clipboardHotkeyKeyCodeKey = "clipboardHotkeyKeyCode"
     private static let clipboardHotkeyCarbonMaskKey = "clipboardHotkeyCarbonMask"
     private static let clipboardLastCleanupKey = "clipboardLastCleanupAt"
+    private static let launchAtLoginAutoConfiguredKey = "launchAtLoginAutoConfigured"
 
     // 使用频次缓存在内存：UserDefaults.dictionary(forKey:) 每次调用都会重新
     // 反序列化 plist，而打分热路径对每个索引条目都要读两次，必须走内存
@@ -63,6 +64,13 @@ enum Preferences {
     static var clipboardLastCleanupAt: TimeInterval {
         get { UserDefaults.standard.object(forKey: clipboardLastCleanupKey) as? TimeInterval ?? 0 }
         set { UserDefaults.standard.set(newValue, forKey: clipboardLastCleanupKey) }
+    }
+
+    /// 是否已执行过「默认自启动」一次性引导。执行过之后一切以设置页开关为准，
+    /// 后续启动不再自动注册（用户主动关掉的自启动不能被悄悄打开）
+    static var launchAtLoginAutoConfigured: Bool {
+        get { UserDefaults.standard.bool(forKey: launchAtLoginAutoConfiguredKey) }
+        set { UserDefaults.standard.set(newValue, forKey: launchAtLoginAutoConfiguredKey) }
     }
 
     static func usageCount(for id: String) -> Int {
