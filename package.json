@@ -1,8 +1,16 @@
 {
   "name": "open-my-app",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
+    {
+      "version": "1.4.1",
+      "date": "2026-10-23",
+      "changes": [
+        "Command results (t / o / custom prefixes) render as a list again instead of inheriting the empty-query app grid",
+        "Folder Commands settings: rows now show Command instead of Prefix, and long command names (e.g. terminal) keep a single-line row"
+      ]
+    },
     {
       "version": "1.4.0",
       "date": "2026-10-23",
