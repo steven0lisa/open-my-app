@@ -1,8 +1,20 @@
 {
   "name": "open-my-app",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
+    {
+      "version": "1.4.0",
+      "date": "2026-10-23",
+      "changes": [
+        "Launchpad-style app grid: opening the panel with an empty query shows all installed apps as a 7-column icon grid sorted by most used; ←/→/↑/↓ move the selection, Return launches it",
+        "Custom folder commands: bind any prefix to any installed app in Settings → Folder Commands (e.g. zcode → iTerm); a unique abbreviation of the prefix works too (z → zcode)",
+        "Directory command ranking is now staged through Spotlight: exact name matches first, then prefix matches, then substring matches; / anchors match names starting or ending with the keyword",
+        "Clipboard cleanup is configurable in Settings → Clipboard (retention days and usage threshold) and new parameters apply immediately",
+        "Settings window reorganized into tabs: General / Hotkeys / Folder Commands / Clipboard / About",
+        "Unit test suite now runs on every push (pre-push hook) and in the release CI before building"
+      ]
+    },
     {
       "version": "1.3.2",
       "date": "2026-10-22",
