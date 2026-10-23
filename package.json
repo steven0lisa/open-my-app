@@ -1,8 +1,15 @@
 {
   "name": "open-my-app",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
+    {
+      "version": "1.4.2",
+      "date": "2026-10-23",
+      "changes": [
+        "Built-in commands act as fallbacks: binding terminal or open to another app in Settings → Folder Commands now redirects their aliases (t / o) to that app as well; the built-in Terminal / Finder behavior remains when nothing is bound"
+      ]
+    },
     {
       "version": "1.4.1",
       "date": "2026-10-23",
