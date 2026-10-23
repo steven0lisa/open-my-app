@@ -60,6 +60,8 @@ final class FileSearchService: NSObject {
     /// 时谓词本身语义已完整，单条查询即可。不能只用一条 CONTAINS 查询在内存里排序
     /// ——Spotlight 对 CONTAINS/BEGINSWITH 的返回顺序都不可控，目标目录可能排在
     /// 几百条之外，候选池截断会把完整匹配挤出结果（实测踩过）。
+    /// 档位内浅目录优先：每档按额度 3 倍收候选池、池内按路径深度升序后再截断
+    /// （Spotlight 返回顺序不可控，只收额度内的前几条会漏掉浅层候选）。
     func search(
         keyword: String,
         directoriesOnly: Bool,
@@ -90,6 +92,9 @@ final class FileSearchService: NSObject {
 
         finished = false
         var tierHits: [[Hit]] = [[], [], []]  // 0 完整 / 1 前缀 / 2 包含
+        // 每档候选池按额度 3 倍收集：Spotlight 返回顺序不可控，只收额度内的前几条
+        // 可能全是深层目录，浅层候选排在池外就永远进不了排序（浅目录优先要靠池内排序）
+        let poolCap = max(limit * 3, 15)
 
         func dropCurrentQuery() {
             query?.stop()
@@ -156,7 +161,6 @@ final class FileSearchService: NSObject {
             dropCurrentQuery()
             let current = NSMetadataQuery()
             current.searchScopes = [NSHomeDirectory()]
-            let budget = limit - already
             let nameClause: String
             let arguments: [String]
             switch level {
@@ -177,11 +181,13 @@ final class FileSearchService: NSObject {
             }
             current.predicate = makePredicate(nameClause: nameClause, arguments: arguments)
             let excluding = Set(tierHits.flatMap { $0 }.map(\.path))
+            let tier = level == 3 ? 0 : level
+            let quota = limit - already
             let handler: (Notification) -> Void = { _ in
-                let hits = Self.collect(current, limit: budget, excluding: excluding)
+                let hits = Self.sortByShallowPath(Self.collect(current, limit: poolCap, excluding: excluding))
                 // 锚定单查询（level 3）没有分级语义，结果存进第一个 tier 即可
-                tierHits[level == 3 ? 0 : level] = hits
-                if hits.count >= budget {
+                tierHits[tier] = hits
+                if hits.count >= quota {
                     complete()
                 }
             }
@@ -212,6 +218,19 @@ final class FileSearchService: NSObject {
         case (false, false):
             return "kMDItemFSName CONTAINS[cd] %@"
         }
+    }
+
+    /// 同档位内浅目录优先：路径组件数少者靠前（`~/work` 先于 `~/work/xxx/work`）。
+    /// Swift 排序不保证稳定，同深度用原下标兜底保持 Spotlight 先后次序（纯函数，供单元测试）
+    static func sortByShallowPath(_ hits: [Hit]) -> [Hit] {
+        let indexed = hits.enumerated().map { item in
+            (offset: item.offset, depth: item.element.path.split(separator: "/").count, hit: item.element)
+        }
+        return indexed.sorted {
+            if $0.depth != $1.depth { return $0.depth < $1.depth }
+            return $0.offset < $1.offset
+        }
+        .map(\.hit)
     }
 
     /// 常见依赖库 / 构建产物目录名：结果路径中出现任一组件（"/<name>/"）即跳过。

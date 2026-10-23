@@ -73,4 +73,35 @@ final class FileSearchServiceTests: XCTestCase {
             "(kMDItemFSName BEGINSWITH[cd] %@ AND kMDItemFSName ENDSWITH[cd] %@)"
         )
     }
+
+    // MARK: - 档位内浅目录优先
+
+    func testSortByShallowPathPrefersFewerComponents() {
+        let hits = [
+            FileSearchService.Hit(path: "/Users/u/work/deep/deeper/work", isDirectory: true),
+            FileSearchService.Hit(path: "/Users/u/work", isDirectory: true),
+            FileSearchService.Hit(path: "/Users/u/a/b/work", isDirectory: true),
+        ]
+        XCTAssertEqual(
+            FileSearchService.sortByShallowPath(hits).map(\.path),
+            [
+                "/Users/u/work",
+                "/Users/u/a/b/work",
+                "/Users/u/work/deep/deeper/work",
+            ]
+        )
+    }
+
+    func testSortByShallowPathKeepsOriginalOrderForSameDepth() {
+        let hits = [
+            FileSearchService.Hit(path: "/Users/u/aa", isDirectory: true),
+            FileSearchService.Hit(path: "/Users/u/bb", isDirectory: true),
+            FileSearchService.Hit(path: "/Users/u/cc", isDirectory: true),
+        ]
+        XCTAssertEqual(FileSearchService.sortByShallowPath(hits).map(\.path), hits.map(\.path))
+    }
+
+    func testSortByShallowPathKeepsEmptyInputIntact() {
+        XCTAssertTrue(FileSearchService.sortByShallowPath([]).isEmpty)
+    }
 }
