@@ -96,6 +96,35 @@ final class CommandRouterTests: XCTestCase {
         assertParse("t proj", custom: [warp], mode: .customApp(warp), keyword: "proj")
     }
 
+    // MARK: - 内置命令词兜底语义（绑定规范名后同族别名跟随）
+
+    func testBuiltinTerminalFollowsUserBindingOfCanonicalName() {
+        // terminal → Otty 后，t 与 terminal 都用 Otty（内置词只做兜底）
+        let otty = command("terminal", name: "Otty", path: "/Applications/Otty.app")
+        assertParse("t proj", custom: [otty], mode: .customApp(otty), keyword: "proj")
+        assertParse("terminal proj", custom: [otty], mode: .customApp(otty), keyword: "proj")
+    }
+
+    func testBuiltinOpenFollowsUserBindingOfCanonicalName() {
+        let visor = command("open", name: "Visor", path: "/Applications/Visor.app")
+        assertParse("o note", custom: [visor], mode: .customApp(visor), keyword: "note")
+        assertParse("open note", custom: [visor], mode: .customApp(visor), keyword: "note")
+    }
+
+    func testExactAliasBindingWinsOverUnboundFamilyMember() {
+        // 显式绑定别名本身（t → Warp）优先；未绑定的 terminal 仍走内置 Terminal
+        let warp = command("t", name: "Warp", path: "/Applications/Warp.app")
+        assertParse("t proj", custom: [warp], mode: .customApp(warp), keyword: "proj")
+        assertParse("terminal proj", custom: [warp], mode: .terminal, keyword: "proj")
+    }
+
+    func testBuiltinFallbackIntactWithoutRelatedBinding() {
+        // 不相干的绑定（zcode）不影响内置词兜底
+        let zcode = command("zcode", name: "Zed", path: "/Applications/Zed.app")
+        assertParse("t proj", custom: [zcode], mode: .terminal, keyword: "proj")
+        assertParse("o proj", custom: [zcode], mode: .finder, keyword: "proj")
+    }
+
     func testBuiltinWordStillWorksWhenNoCustomConflict() {
         assertParse("t proj", custom: [command("zcode", name: "Zed", path: "/Applications/Zed.app")], mode: .terminal, keyword: "proj")
     }

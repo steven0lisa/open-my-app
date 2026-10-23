@@ -214,7 +214,7 @@ struct SettingsView: View {
         Form {
             Section {
                 Text(NSLocalizedString(
-                    "Type a command followed by a keyword to search folders; Return opens the best match with the chosen app. A unique abbreviation of the command works too (e.g. \"z\" for \"zcode\").",
+                    "Type a command followed by a keyword to search folders; Return opens the best match with the chosen app. A unique abbreviation of the command works too (e.g. \"z\" for \"zcode\"). The built-in words t / terminal and o / open fall back to Terminal and Finder unless bound here — binding terminal or open redirects their aliases (t / o) as well.",
                     comment: "custom folder commands footnote"
                 ))
                 .font(.footnote)

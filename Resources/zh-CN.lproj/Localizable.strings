@@ -39,7 +39,7 @@
 
 /* 自定义目录命令（命令词 → 应用） */
 "Custom Folder Commands" = "自定义目录命令";
-"Type a command followed by a keyword to search folders; Return opens the best match with the chosen app. A unique abbreviation of the command works too (e.g. \"z\" for \"zcode\")." = "输入「命令 + 空格 + 关键字」搜索目录，回车用所选应用打开最佳匹配；命令的唯一缩写同样生效（如用 \"z\" 代表 \"zcode\"）。";
+"Type a command followed by a keyword to search folders; Return opens the best match with the chosen app. A unique abbreviation of the command works too (e.g. \"z\" for \"zcode\"). The built-in words t / terminal and o / open fall back to Terminal and Finder unless bound here — binding terminal or open redirects their aliases (t / o) as well." = "输入「命令 + 空格 + 关键字」搜索目录，回车用所选应用打开最佳匹配；命令的唯一缩写同样生效（如用 \"z\" 代表 \"zcode\"）。内置命令 t / terminal、o / open 在未绑定时兜底用 Terminal / Finder——把 terminal 或 open 绑定到其他应用后，其别名（t / o）也会改用该应用。";
 "Command" = "命令";
 "Choose an app…" = "选择应用…";
 "Add Command" = "添加命令";

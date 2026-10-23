@@ -28,8 +28,10 @@ enum CommandRouter {
         return (mode, keyword)
     }
 
-    /// 命令词 → 动作。完全匹配优先（自定义前缀可覆盖内置词——用户显式配置即意图）；
-    /// 内置词仅完整匹配（与历史行为一致），缩写只在自定义前缀里找，且必须唯一命中
+    /// 命令词 → 动作。优先级：用户显式配置的前缀完全匹配（可覆盖内置词）>
+    /// 内置词兜底——terminal / open 是同族命令的规范名，用户若把它绑定到了
+    /// 其他应用，族内所有别名（t / terminal、o / open）一并改用绑定的应用 >
+    /// 缩写只在自定义前缀里找，且必须唯一命中
     static func resolveToken(_ token: String, custom: [CustomAppCommand], allowAbbreviation: Bool) -> CommandMode? {
         let lower = token.lowercased()
         guard !lower.isEmpty else { return nil }
@@ -38,8 +40,14 @@ enum CommandRouter {
         }
         switch lower {
         case "t", "terminal":
+            if let bound = custom.first(where: { $0.prefix.lowercased() == "terminal" }) {
+                return .customApp(bound)
+            }
             return .terminal
         case "o", "open":
+            if let bound = custom.first(where: { $0.prefix.lowercased() == "open" }) {
+                return .customApp(bound)
+            }
             return .finder
         default:
             break
