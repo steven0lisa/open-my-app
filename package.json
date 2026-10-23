@@ -1,8 +1,15 @@
 {
   "name": "open-my-app",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
+    {
+      "version": "1.4.3",
+      "date": "2026-10-23",
+      "changes": [
+        "Folder command results now rank shallower directories first within each match tier (e.g. ~/work before ~/work/xxx/work)"
+      ]
+    },
     {
       "version": "1.4.2",
       "date": "2026-10-23",
