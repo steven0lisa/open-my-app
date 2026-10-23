@@ -1,8 +1,8 @@
 import XCTest
-@testable import OpenMyApp
 
 /// 剪切板清理的删留边界：临时 SQLite 库上验证「超过保留天数 且 使用次数 < 阈值」组合。
 /// 参数显式传入 cleanupOld，不读 Preferences（避免环境 defaults 干扰）
+/// 不 import 应用模块：logic bundle 模式被测源码直接编进测试 bundle（AGENTS.md 踩坑 11）
 final class ClipboardStoreCleanupTests: XCTestCase {
     private var directory: URL!
     private var store: ClipboardStore!
