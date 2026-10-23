@@ -72,6 +72,7 @@ final class LauncherModel: ObservableObject {
             fileSearch.cancel()
             results = []
             selectedID = nil
+            isBrowsingApps = false
             let work = DispatchWorkItem { [weak self] in self?.refresh() }
             commandWorkItem = work
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
@@ -87,7 +88,9 @@ final class LauncherModel: ObservableObject {
     }
 
     func refresh() {
-        // t/o 命令只在普通模式生效，剪切板模式是纯历史搜索
+        // 浏览态判定必须先于命令路由：命令查询（t/o/自定义）接手时先退出浏览态，
+        // 否则空查询网格残留的 isBrowsingApps 会把命令结果渲染成网格（v1.4.0 实撞）
+        isBrowsingApps = searchMode == .all && query.trimmingCharacters(in: .whitespaces).isEmpty
         if searchMode == .all, let command = Self.parseCommand(query) {
             runCommand(command)
             return
@@ -96,7 +99,6 @@ final class LauncherModel: ObservableObject {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
 
         var appResults: [SearchResult] = []
-        isBrowsingApps = searchMode == .all && trimmed.isEmpty
         if isBrowsingApps {
             // 空查询浏览态：全量应用按最常用排序铺开（Launchpad 式网格）
             appResults = engine.allAppsByUsage()
@@ -187,6 +189,8 @@ final class LauncherModel: ObservableObject {
             limit: 5
         ) { [weak self] hits in
             guard let self, self.commandGeneration == generation else { return }
+            // 命令结果永远以列表渲染，不继承可能残留的浏览态网格
+            self.isBrowsingApps = false
             self.results = Self.makeCommandResults(mode: command.mode, hits: hits)
             self.selectedID = self.results.first?.id
         }

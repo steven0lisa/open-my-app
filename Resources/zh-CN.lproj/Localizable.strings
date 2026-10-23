@@ -37,10 +37,10 @@
 "Open in Finder: %@" = "使用 Finder 打开 %@";
 "Open in %@: %@" = "使用 %@ 打开 %@";
 
-/* 自定义目录命令（前缀 → 应用） */
+/* 自定义目录命令（命令词 → 应用） */
 "Custom Folder Commands" = "自定义目录命令";
-"Type a prefix followed by a keyword to search folders; Return opens the best match with the chosen app. A unique abbreviation of the prefix works too (e.g. \"z\" for \"zcode\")." = "输入「前缀 + 空格 + 关键字」搜索目录，回车用所选应用打开最佳匹配；前缀的唯一缩写同样生效（如用 \"z\" 代表 \"zcode\"）。";
-"Prefix" = "前缀";
+"Type a command followed by a keyword to search folders; Return opens the best match with the chosen app. A unique abbreviation of the command works too (e.g. \"z\" for \"zcode\")." = "输入「命令 + 空格 + 关键字」搜索目录，回车用所选应用打开最佳匹配；命令的唯一缩写同样生效（如用 \"z\" 代表 \"zcode\"）。";
+"Command" = "命令";
 "Choose an app…" = "选择应用…";
 "Add Command" = "添加命令";
 "Remove Command" = "删除命令";

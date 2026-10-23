@@ -214,7 +214,7 @@ struct SettingsView: View {
         Form {
             Section {
                 Text(NSLocalizedString(
-                    "Type a prefix followed by a keyword to search folders; Return opens the best match with the chosen app. A unique abbreviation of the prefix works too (e.g. \"z\" for \"zcode\").",
+                    "Type a command followed by a keyword to search folders; Return opens the best match with the chosen app. A unique abbreviation of the command works too (e.g. \"z\" for \"zcode\").",
                     comment: "custom folder commands footnote"
                 ))
                 .font(.footnote)
@@ -393,7 +393,9 @@ struct SettingsView: View {
     }
 }
 
-/// 自定义目录命令的单行配置：前缀输入框 → 应用下拉框（每项带图标与名字）→ 删除按钮
+/// 自定义目录命令的单行配置：命令词输入框 → 应用下拉框（每项带图标与名字）→ 删除按钮。
+/// 标签用显式 Text + 输入框 labelsHidden：Grouped Form 会把 TextField 的 prompt 提升成
+/// 行标签，空间一紧就折到控件上方（长命令词如 terminal 实撞换行）
 private struct CustomCommandRow: View {
     @Binding var command: CustomAppCommand
     /// 已安装应用目录（后台扫描异步到达，初始为空）
@@ -402,12 +404,15 @@ private struct CustomCommandRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            Text(NSLocalizedString("Command", comment: "custom folder commands"))
+
             TextField(
-                NSLocalizedString("Prefix", comment: "custom folder commands"),
+                NSLocalizedString("Command", comment: "custom folder commands"),
                 text: $command.prefix
             )
             .textFieldStyle(.roundedBorder)
-            .frame(width: 110)
+            .labelsHidden()
+            .frame(width: 160)
             .autocorrectionDisabled()
 
             Image(systemName: "arrow.right")
