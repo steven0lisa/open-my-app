@@ -34,3 +34,46 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.openmyapp.app
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  OpenMyAppTests:
+    type: bundle.unit-test
+    platform: macOS
+    # 被测的纯逻辑源文件直接编进测试 bundle（无宿主模式，不启动 App）。
+    # LauncherModel 的依赖图（Search/Clipboard/Preferences）需一并列出；
+    # 给这些文件新增被测接口时无需动这里，新增文件才要同步
+    sources:
+      - path: Sources/Search/CommandRouter.swift
+      - path: Sources/Search/CustomAppCommand.swift
+      - path: Sources/Search/FileSearchService.swift
+      - path: Sources/Search/SearchEngine.swift
+      - path: Sources/Search/SearchResult.swift
+      - path: Sources/Search/AppIndexer.swift
+      - path: Sources/Search/Pinyin.swift
+      - path: Sources/Search/SystemSettingsCatalog.swift
+      - path: Sources/Clipboard/ClipboardItem.swift
+      - path: Sources/Clipboard/ClipboardManager.swift
+      - path: Sources/Clipboard/ClipboardStore.swift
+      - path: Sources/Hotkey/HotkeyDisplay.swift
+      - path: Sources/Utils/Preferences.swift
+      - path: Sources/UI/LauncherModel.swift
+      - path: Tests/OpenMyAppTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.openmyapp.app.tests
+        # 显式指定产品与模块名：否则 swiftmodule 安装路径与 app target 撞车
+        #（Multiple commands produce OpenMyApp.swiftmodule，实测踩过）
+        PRODUCT_NAME: OpenMyAppTests
+        PRODUCT_MODULE_NAME: OpenMyAppTests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  OpenMyApp:
+    build:
+      targets:
+        OpenMyApp: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - OpenMyAppTests

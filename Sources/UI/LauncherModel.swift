@@ -21,6 +21,8 @@ final class LauncherModel: ObservableObject {
         }
     }
     @Published private(set) var results: [SearchResult] = []
+    /// 浏览态：普通模式空查询，下方以应用网格铺开全量应用（Launchpad 风）
+    @Published private(set) var isBrowsingApps = false
     @Published var selectedID: String?
     private(set) var searchMode: SearchMode = .all
 
@@ -78,30 +80,10 @@ final class LauncherModel: ObservableObject {
         }
     }
 
-    /// `t <关键字>` → Terminal 打开目录；`o <关键字>` → Finder 打开目录/文件
+    /// `t <关键字>` → Terminal 打开目录；`o <关键字>` → Finder 打开目录/文件；
+    /// 自定义前缀（含唯一缩写）→ 用绑定的应用打开目录。解析细节见 CommandRouter
     static func parseCommand(_ raw: String) -> (mode: CommandMode, keyword: String)? {
-        let trimmed = raw.trimmingCharacters(in: .whitespaces)
-        let commands: [(word: String, mode: CommandMode)] = [
-            ("t", .terminal),
-            ("terminal", .terminal),
-            ("o", .finder),
-            ("open", .finder),
-        ]
-        for command in commands {
-            if trimmed == command.word {
-                return (command.mode, "")
-            }
-            let prefix = command.word + " "
-            if trimmed.hasPrefix(prefix) {
-                return (command.mode, trimmed.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces))
-            }
-        }
-        return nil
-    }
-
-    enum CommandMode {
-        case terminal
-        case finder
+        CommandRouter.parse(raw, custom: Preferences.customAppCommands)
     }
 
     func refresh() {
@@ -114,11 +96,16 @@ final class LauncherModel: ObservableObject {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
 
         var appResults: [SearchResult] = []
-        if searchMode == .all, !trimmed.isEmpty {
+        isBrowsingApps = searchMode == .all && trimmed.isEmpty
+        if isBrowsingApps {
+            // 空查询浏览态：全量应用按最常用排序铺开（Launchpad 式网格）
+            appResults = engine.allAppsByUsage()
+        } else if searchMode == .all {
             appResults = Array(engine.search(query, limit: Self.appResultLimit))
         }
-        // 空查询只在剪切板模式下浏览最近历史；普通模式保持原来的干净面板
-        // （⌥Space 唤出就闪出最近剪贴内容既扰人也有泄露风险）
+        // 剪切板内容只在剪切板模式空查询下浏览最近历史，或普通模式有输入时混入；
+        // 普通模式空查询是应用网格，绝不混入剪切板内容（⌥Space 唤出闪出最近
+        // 剪贴内容扰人且有泄露风险——v1.3.1 修的问题对剪切板内容依然成立）
         let browseMode = searchMode == .clipboard && trimmed.isEmpty
         let clipLimit = browseMode ? ClipboardLimits.browseCount : Self.clipResultLimit
         var clipResults: [SearchResult] = []
@@ -185,11 +172,18 @@ final class LauncherModel: ObservableObject {
             selectedID = nil
             return
         }
+        // Terminal 与自定义应用都只搜目录（目录交给任意应用打开才有意义）；
+        // Finder 模式连文件一起搜（文件在 Finder 中定位选中）
+        let directoriesOnly: Bool
+        switch command.mode {
+        case .terminal, .customApp: directoriesOnly = true
+        case .finder: directoriesOnly = false
+        }
         commandGeneration += 1
         let generation = commandGeneration
         fileSearch.search(
             keyword: command.keyword,
-            directoriesOnly: command.mode == .terminal,
+            directoriesOnly: directoriesOnly,
             limit: 5
         ) { [weak self] hits in
             guard let self, self.commandGeneration == generation else { return }
@@ -220,6 +214,22 @@ final class LauncherModel: ObservableObject {
                     title: String(format: NSLocalizedString("Open in Finder: %@", comment: "o command"), displayPath),
                     alias: "",
                     kind: .finder,
+                    appPath: nil,
+                    settingAnchor: nil,
+                    symbolName: nil,
+                    openPath: hit.path,
+                    clipItem: nil
+                )
+            case .customApp(let app):
+                return SearchResult(
+                    id: "custom:\(app.id.uuidString):\(hit.path)",
+                    title: String(
+                        format: NSLocalizedString("Open in %@: %@", comment: "custom folder command"),
+                        app.appName,
+                        displayPath
+                    ),
+                    alias: "",
+                    kind: .customApp(path: app.appPath, name: app.appName),
                     appPath: nil,
                     settingAnchor: nil,
                     symbolName: nil,
@@ -269,6 +279,33 @@ final class LauncherModel: ObservableObject {
         let currentIndex = results.firstIndex { $0.id == selectedID } ?? 0
         let nextIndex = min(max(currentIndex + delta, 0), results.count - 1)
         selectedID = results[nextIndex].id
+    }
+
+    /// 网格浏览态的方向键移动：上下按列数跨行，左右逐格；左右在行首/行尾不换行，
+    /// 上下与左右最终都裁剪在 [0, count-1]
+    func moveSelectionInGrid(dx: Int, dy: Int, columns: Int) {
+        guard !results.isEmpty, columns > 0 else { return }
+        let current = results.firstIndex { $0.id == selectedID } ?? 0
+        let next = Self.gridNavigationTarget(
+            current: current,
+            count: results.count,
+            dx: dx,
+            dy: dy,
+            columns: columns
+        )
+        selectedID = results[next].id
+    }
+
+    /// 网格导航目标索引（纯函数，供单元测试）
+    static func gridNavigationTarget(current: Int, count: Int, dx: Int, dy: Int, columns: Int) -> Int {
+        var next = current
+        if dx < 0, current % columns > 0 {
+            next -= 1
+        } else if dx > 0, current % columns < columns - 1 {
+            next += 1
+        }
+        next += dy * columns
+        return min(max(next, 0), count - 1)
     }
 
     /// 激活当前选中项（回车）

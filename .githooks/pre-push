@@ -1,0 +1,7 @@
+#!/bin/bash
+# git push 前自动跑单元测试（AGENTS.md：每次推送前必须过单测）。
+# 新克隆安装钩子：git config core.hooksPath .githooks
+set -euo pipefail
+cd "$(dirname "$0")/.."
+echo "[pre-push] running unit tests..."
+exec bash scripts/run-tests.sh

@@ -78,6 +78,20 @@ final class ClipboardManager {
         return next > date ? next : date
     }
 
+    /// 清理参数（设置页）变更后立即执行一次，让新参数即时生效。
+    /// 在 workQueue 执行，与 pollOnce 的清理记账（nextCleanupDue / lastCleanupAt）同队列互斥
+    func cleanNow() {
+        workQueue.async { [weak self] in
+            guard let self else { return }
+            self.nextCleanupDue = Date().addingTimeInterval(24 * 3600)
+            Preferences.clipboardLastCleanupAt = Date().timeIntervalSince1970
+            _ = self.store.cleanupOld(
+                retentionDays: Preferences.clipboardRetentionDays,
+                keepUsageCount: Preferences.clipboardKeepUsageCount
+            )
+        }
+    }
+
     // MARK: - 轮询与捕获（workQueue）
 
     private func pollOnce() {
@@ -89,7 +103,10 @@ final class ClipboardManager {
         if Date() >= nextCleanupDue {
             nextCleanupDue = Date().addingTimeInterval(6 * 3600)
             Preferences.clipboardLastCleanupAt = Date().timeIntervalSince1970
-            _ = store.cleanupOld()
+            _ = store.cleanupOld(
+                retentionDays: Preferences.clipboardRetentionDays,
+                keepUsageCount: Preferences.clipboardKeepUsageCount
+            )
         }
 
         guard let records = Self.capture(pasteboard: pasteboard, filesDirectory: filesDirectory) else { return }

@@ -11,7 +11,10 @@ enum Preferences {
     private static let clipboardHotkeyKeyCodeKey = "clipboardHotkeyKeyCode"
     private static let clipboardHotkeyCarbonMaskKey = "clipboardHotkeyCarbonMask"
     private static let clipboardLastCleanupKey = "clipboardLastCleanupAt"
+    private static let clipboardRetentionDaysKey = "clipboardRetentionDays"
+    private static let clipboardKeepUsageCountKey = "clipboardKeepUsageCount"
     private static let launchAtLoginAutoConfiguredKey = "launchAtLoginAutoConfigured"
+    private static let customAppCommandsKey = "customAppCommands"
 
     // 使用频次缓存在内存：UserDefaults.dictionary(forKey:) 每次调用都会重新
     // 反序列化 plist，而打分热路径对每个索引条目都要读两次，必须走内存
@@ -66,6 +69,18 @@ enum Preferences {
         set { UserDefaults.standard.set(newValue, forKey: clipboardLastCleanupKey) }
     }
 
+    /// 清理参数：创建超过 N 天的记录参与清理（默认 21 = 3 周），设置页可配
+    static var clipboardRetentionDays: Int {
+        get { UserDefaults.standard.object(forKey: clipboardRetentionDaysKey) as? Int ?? 21 }
+        set { UserDefaults.standard.set(max(1, newValue), forKey: clipboardRetentionDaysKey) }
+    }
+
+    /// 清理参数：使用次数 < M 的记录才删（默认 2 = 用过 ≥2 次永久保留），设置页可配
+    static var clipboardKeepUsageCount: Int {
+        get { UserDefaults.standard.object(forKey: clipboardKeepUsageCountKey) as? Int ?? 2 }
+        set { UserDefaults.standard.set(max(1, newValue), forKey: clipboardKeepUsageCountKey) }
+    }
+
     /// 是否已执行过「默认自启动」一次性引导。执行过之后一切以设置页开关为准，
     /// 后续启动不再自动注册（用户主动关掉的自启动不能被悄悄打开）
     static var launchAtLoginAutoConfigured: Bool {
@@ -75,6 +90,42 @@ enum Preferences {
 
     static func usageCount(for id: String) -> Int {
         usageCounts[id] ?? 0
+    }
+
+    /// 自定义目录命令（设置页配置）。内存缓存：命令解析每次按键都会读，
+    /// 与使用频次同理，plist 反序列化不能进按键热路径
+    private static var cachedCustomAppCommands: [CustomAppCommand]?
+
+    static var customAppCommands: [CustomAppCommand] {
+        get {
+            if let cachedCustomAppCommands { return cachedCustomAppCommands }
+            var commands: [CustomAppCommand] = []
+            if let data = UserDefaults.standard.data(forKey: customAppCommandsKey),
+               let decoded = try? JSONDecoder().decode([CustomAppCommand].self, from: data) {
+                commands = sanitizeCustomAppCommands(decoded)
+            }
+            cachedCustomAppCommands = commands
+            return commands
+        }
+        set {
+            // 写入侧同样过滤：内存缓存必须与冷启动读取语义一致，
+            // 否则设置页保存后走缓存的面板解析会拿到未过滤数据
+            let sanitized = sanitizeCustomAppCommands(newValue)
+            cachedCustomAppCommands = sanitized
+            if let data = try? JSONEncoder().encode(sanitized) {
+                UserDefaults.standard.set(data, forKey: customAppCommandsKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: customAppCommandsKey)
+            }
+        }
+    }
+
+    /// 空前缀 / 含空白的前缀永远无法作为单词触发，存取两层都直接剔除
+    private static func sanitizeCustomAppCommands(_ commands: [CustomAppCommand]) -> [CustomAppCommand] {
+        commands.filter { command in
+            let prefix = command.prefix.trimmingCharacters(in: .whitespaces)
+            return !prefix.isEmpty && !prefix.contains(where: \.isWhitespace)
+        }
     }
 
     static func lastUsedDate(for id: String) -> Date? {

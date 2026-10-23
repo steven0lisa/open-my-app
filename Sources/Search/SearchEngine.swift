@@ -44,6 +44,22 @@ final class SearchEngine {
         return scanned.count
     }
 
+    /// 空查询浏览态：全量应用按最常用排序（不含系统设置项，网格里只放应用）
+    func allAppsByUsage() -> [SearchResult] {
+        Self.sortByUsage(appItems.map { item in
+            (result: item.result, usage: Preferences.usageCount(for: item.result.id))
+        })
+    }
+
+    /// 浏览态排序：使用频次降序，同频次按展示名升序（纯函数，供单元测试）
+    static func sortByUsage(_ apps: [(result: SearchResult, usage: Int)]) -> [SearchResult] {
+        apps.sorted { lhs, rhs in
+            if lhs.usage != rhs.usage { return lhs.usage > rhs.usage }
+            return lhs.result.title < rhs.result.title
+        }
+        .map(\.result)
+    }
+
     /// limit：结果上限（普通模式 app 结果压缩到 3 条，为剪切板结果腾位）
     func search(_ rawQuery: String, limit: Int? = nil) -> [SearchResult] {
         let query = rawQuery.trimmingCharacters(in: .whitespaces).lowercased()

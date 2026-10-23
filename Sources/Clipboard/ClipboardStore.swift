@@ -234,20 +234,21 @@ final class ClipboardStore {
 
     // MARK: - 清理
 
-    /// 每日清理：创建于 1 周 ~ 3 周窗口内且使用次数 <2 的记录删除（含落盘文件与 FTS 索引行）。
-    /// 熬过 3 周的记录必然使用过 ≥2 次，永久保留。
-    func cleanupOld(now: Date = Date()) -> Int {
-        let windowStart = now.addingTimeInterval(-21 * 24 * 3600).timeIntervalSince1970
-        let windowEnd = now.addingTimeInterval(-7 * 24 * 3600).timeIntervalSince1970
+    /// 清理：创建超过 retentionDays 天且使用次数 < keepUsageCount 的记录删除
+    /// （含落盘文件与 FTS 索引行）。参数来自设置页（Preferences.clipboardRetentionDays /
+    /// clipboardKeepUsageCount），默认 21 天 / 2 次。每日清理持续运行下，「熬过保留期」
+    /// 的记录必然用过 ≥keepUsageCount 次，永久保留。
+    func cleanupOld(now: Date = Date(), retentionDays: Int = 21, keepUsageCount: Int = 2) -> Int {
+        let cutoff = now.addingTimeInterval(-Double(retentionDays) * 24 * 3600).timeIntervalSince1970
         return queue.sync {
             guard db != nil else { return 0 }
             var removed = 0
             while true {
                 let victims: [(id: Int64, filePath: String?, thumbPath: String?)] = query(
-                    "SELECT id, file_path, thumb_path FROM clip_items WHERE use_count < 2 AND created_at < ? AND created_at > ? LIMIT 500",
+                    "SELECT id, file_path, thumb_path FROM clip_items WHERE use_count < ? AND created_at < ? LIMIT 500",
                     bind: { stmt in
-                        sqlite3_bind_double(stmt, 1, windowEnd)
-                        sqlite3_bind_double(stmt, 2, windowStart)
+                        sqlite3_bind_int64(stmt, 1, Int64(keepUsageCount))
+                        sqlite3_bind_double(stmt, 2, cutoff)
                     },
                     map: { stmt in
                         (sqlite3_column_int64(stmt, 0), Self.text(stmt, 1), Self.text(stmt, 2))

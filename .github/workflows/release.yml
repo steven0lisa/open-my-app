@@ -29,6 +29,13 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      - name: Run unit tests
+        run: |
+          chmod +x scripts/run-tests.sh
+          ./scripts/run-tests.sh
+        env:
+          TEST_XCBUILD_FLAGS: CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+
       - name: Build
         run: |
           xcodebuild -project OpenMyApp.xcodeproj \

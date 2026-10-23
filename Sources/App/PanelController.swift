@@ -205,11 +205,29 @@ final class PanelController: NSObject, NSWindowDelegate {
         case 36, 76: // return / keypad enter
             model.activateSelected()
             return nil
+        case 123: // left：仅网格浏览态消费，列表态留给输入框光标
+            if model.isBrowsingApps {
+                model.moveSelectionInGrid(dx: -1, dy: 0, columns: PanelMetrics.gridColumns)
+                return nil
+            }
+        case 124: // right：同上
+            if model.isBrowsingApps {
+                model.moveSelectionInGrid(dx: 1, dy: 0, columns: PanelMetrics.gridColumns)
+                return nil
+            }
         case 125: // down
-            model.moveSelection(1)
+            if model.isBrowsingApps {
+                model.moveSelectionInGrid(dx: 0, dy: 1, columns: PanelMetrics.gridColumns)
+            } else {
+                model.moveSelection(1)
+            }
             return nil
         case 126: // up
-            model.moveSelection(-1)
+            if model.isBrowsingApps {
+                model.moveSelectionInGrid(dx: 0, dy: -1, columns: PanelMetrics.gridColumns)
+            } else {
+                model.moveSelection(-1)
+            }
             return nil
         case 53: // esc
             hidePanel()
@@ -218,6 +236,7 @@ final class PanelController: NSObject, NSWindowDelegate {
         default:
             return event
         }
+        return event
     }
 
     // MARK: - 启动动作
@@ -259,6 +278,17 @@ final class PanelController: NSObject, NSWindowDelegate {
                     // 文件在 Finder 中定位并选中
                     NSWorkspace.shared.activateFileViewerSelecting([url])
                 }
+                Preferences.recordUsage(for: result.id)
+            }
+        case .customApp(let appPath, _):
+            if let path = result.openPath {
+                // 等价于 open -a <App> <目录>：把目录当作文档交给绑定的应用打开
+                NSWorkspace.shared.open(
+                    [URL(fileURLWithPath: path)],
+                    withApplicationAt: URL(fileURLWithPath: appPath),
+                    configuration: NSWorkspace.OpenConfiguration(),
+                    completionHandler: nil
+                )
                 Preferences.recordUsage(for: result.id)
             }
         case .clipboardText, .clipboardImage, .clipboardFile:

@@ -12,6 +12,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let clipboardManager = ClipboardManager()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 单元测试宿主进程（xcodebuild test 以本 App 为 TEST_HOST）：
+        // 跳过全部启动副作用（登录项注册、剪切板轮询、托盘、热键、面板、目录监听）
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return
+        }
+
         // 默认开启登录自启动（一次性引导）：之后一切以设置页开关为准
         if !Preferences.launchAtLoginAutoConfigured {
             Preferences.launchAtLoginAutoConfigured = true
@@ -35,6 +41,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // 托盘显示与全局快捷键都可能由设置页改动，统一刷新
             self?.statusBarController?.refresh()
             self?.hotkeyManager?.reRegister()
+        }
+        settingsController?.onClipboardCleanupChanged = { [weak self] in
+            // 清理参数（保留天数 / 次数阈值）变更后立即执行一次清理
+            self?.clipboardManager.cleanNow()
         }
 
         statusBarController = StatusBarController()

@@ -20,11 +20,30 @@
 "Auto-paste enabled: selecting a clipboard item pastes it into the frontmost app." = "自动粘贴已开启：选中剪切板记录后会自动粘贴到前台应用。";
 "Auto-paste needs Accessibility permission; until granted, selecting only copies to the clipboard." = "自动粘贴需要辅助功能权限；未授权时选中记录仅复制到剪切板。";
 "Grant Accessibility Permission…" = "去授权辅助功能…";
-"Copied text, images and files are stored locally in SQLite. Low-usage records older than a week are cleaned up automatically." = "复制的文本、图片与文件仅存本地 SQLite；超过一周的低频记录会自动清理。";
+/* 设置页 Tab */
+"Hotkeys" = "快捷键";
+"Folder Commands" = "目录命令";
+
+/* 剪切板清理参数 */
+"Clean up records older than" = "清理多少天前的记录";
+"Only if used fewer than" = "仅当使用少于";
+"%d days" = "%d 天";
+"%d times" = "%d 次";
+"Records older than %1$d days with fewer than %2$d uses are removed automatically; everything else is kept forever." = "超过 %1$d 天且使用少于 %2$d 次的记录会被自动清理，其余永久保留。";
+"Copied text, images and files are stored locally in SQLite." = "复制的文本、图片与文件仅存本地 SQLite。";
 
 /* 命令模式（t / o 前缀） */
 "Open in Terminal: %@" = "使用 Terminal 打开 %@";
 "Open in Finder: %@" = "使用 Finder 打开 %@";
+"Open in %@: %@" = "使用 %@ 打开 %@";
+
+/* 自定义目录命令（前缀 → 应用） */
+"Custom Folder Commands" = "自定义目录命令";
+"Type a prefix followed by a keyword to search folders; Return opens the best match with the chosen app. A unique abbreviation of the prefix works too (e.g. \"z\" for \"zcode\")." = "输入「前缀 + 空格 + 关键字」搜索目录，回车用所选应用打开最佳匹配；前缀的唯一缩写同样生效（如用 \"z\" 代表 \"zcode\"）。";
+"Prefix" = "前缀";
+"Choose an app…" = "选择应用…";
+"Add Command" = "添加命令";
+"Remove Command" = "删除命令";
 
 /* StatusBarController */
 "Open Search Panel (%@)" = "打开搜索框（%@）";

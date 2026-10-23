@@ -8,6 +8,8 @@ enum ResultKind {
     case terminal
     /// `o ` 命令：用 Finder 打开目录 / 文件
     case finder
+    /// 自定义目录命令：用绑定的应用打开目录（携带应用路径与名称供图标、标签展示）
+    case customApp(path: String, name: String)
     /// 剪切板记录（按内容类型分行展示）
     case clipboardText
     case clipboardImage
@@ -19,6 +21,7 @@ enum ResultKind {
         case .systemSetting: return NSLocalizedString("System Setting", comment: "result kind")
         case .terminal: return "Terminal"
         case .finder: return "Finder"
+        case .customApp(_, let name): return name
         case .clipboardText: return NSLocalizedString("Text", comment: "result kind")
         case .clipboardImage: return NSLocalizedString("Image", comment: "result kind")
         case .clipboardFile: return NSLocalizedString("File", comment: "result kind")

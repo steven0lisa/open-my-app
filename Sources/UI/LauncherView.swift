@@ -19,6 +19,28 @@ enum PanelMetrics {
         let contentHeight = CGFloat(count) * rowHeight + CGFloat(count - 1) * rowSpacing + 2 * listPadding
         return min(contentHeight, maxListHeight)
     }
+
+    // MARK: 应用网格（空查询浏览态，Launchpad 风）
+
+    static let gridColumns = 7
+    static let gridSpacing: CGFloat = 6
+    static let gridPadding: CGFloat = 12
+    /// 单元格统一高度：上 8 + 图标 48 + 间距 6 + 两行名称 26 + 下 8
+    static let gridCellHeight: CGFloat = 96
+    static let gridIconSize: CGFloat = 48
+    /// 网格最多直接露出 4 行，其余滚动
+    static let gridMaxVisibleRows = 4
+
+    static var gridColumnsSpec: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: gridSpacing), count: gridColumns)
+    }
+
+    /// 与 LazyVGrid 实际内容高度一致（行数*格高 + (行数-1)*格距 + 上下 padding），约束同 listHeight
+    static func gridHeight(forCount count: Int) -> CGFloat {
+        let rows = max(1, Int(ceil(Double(count) / Double(gridColumns))))
+        let visibleRows = min(rows, gridMaxVisibleRows)
+        return CGFloat(visibleRows) * gridCellHeight + CGFloat(visibleRows - 1) * gridSpacing + 2 * gridPadding
+    }
 }
 
 /// Spotlight 风格搜索主界面：顶部搜索框 + 下方结果列表
@@ -81,11 +103,16 @@ struct LauncherView: View {
     @ViewBuilder
     private var content: some View {
         if model.results.isEmpty {
-            Text(NSLocalizedString("No results", comment: "empty search result"))
-                .font(.system(size: 13))
-                .foregroundColor(.secondary)
-                .frame(height: 40)
-                .padding(.bottom, 8)
+            // 空态只可能是「无输入且索引尚未就绪」或「有输入无命中」；前者保持干净面板
+            if !model.query.isEmpty {
+                Text(NSLocalizedString("No results", comment: "empty search result"))
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                    .frame(height: 40)
+                    .padding(.bottom, 8)
+            }
+        } else if model.isBrowsingApps {
+            appGrid
         } else {
             resultList
         }
@@ -105,6 +132,30 @@ struct LauncherView: View {
                 .padding(PanelMetrics.listPadding)
             }
             .frame(height: PanelMetrics.listHeight(forCount: model.results.count))
+            .onChange(of: model.selectedID) { _, newID in
+                guard let newID else { return }
+                withAnimation(.easeOut(duration: 0.1)) {
+                    proxy.scrollTo(newID, anchor: .center)
+                }
+            }
+        }
+    }
+
+    /// 空查询浏览态：全量应用网格，按最常用排序（Launchpad 风）
+    private var appGrid: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVGrid(columns: PanelMetrics.gridColumnsSpec, spacing: PanelMetrics.gridSpacing) {
+                    ForEach(model.results) { result in
+                        AppGridCell(result: result, isSelected: result.id == model.selectedID)
+                            .id(result.id)
+                            .contentShape(Rectangle())
+                            .onTapGesture { model.activate(result) }
+                    }
+                }
+                .padding(PanelMetrics.gridPadding)
+            }
+            .frame(height: PanelMetrics.gridHeight(forCount: model.results.count))
             .onChange(of: model.selectedID) { _, newID in
                 guard let newID else { return }
                 withAnimation(.easeOut(duration: 0.1)) {
@@ -165,13 +216,13 @@ private struct ResultRow: View {
     }
 
     /// 图标按需解析：应用走 NSWorkspace（系统内部缓存），设置项走 SF Symbol，
-    /// 索引不常驻任何 NSImage，只有可见的 ≤9 行产生图标对象
-    static func icon(for result: SearchResult) -> NSImage? {
+    /// 索引不常驻任何 NSImage，只有可见的行产生图标对象；网格单元用大尺寸
+    static func icon(for result: SearchResult, size: CGFloat = 32) -> NSImage? {
         switch result.kind {
         case .application:
             guard let path = result.appPath else { return nil }
             let icon = NSWorkspace.shared.icon(forFile: path)
-            icon.size = NSSize(width: 32, height: 32)
+            icon.size = NSSize(width: size, height: size)
             return icon
         case .systemSetting:
             return NSImage(
@@ -182,6 +233,10 @@ private struct ResultRow: View {
             return NSWorkspace.shared.icon(forFile: "/System/Applications/Utilities/Terminal.app")
         case .finder:
             return NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app")
+        case .customApp(let appPath, _):
+            let icon = NSWorkspace.shared.icon(forFile: appPath)
+            icon.size = NSSize(width: size, height: size)
+            return icon
         case .clipboardText:
             return NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: result.title)
         case .clipboardImage:
@@ -189,7 +244,7 @@ private struct ResultRow: View {
         case .clipboardFile:
             guard let path = result.clipItem?.filePath else { return nil }
             let icon = NSWorkspace.shared.icon(forFile: path)
-            icon.size = NSSize(width: 32, height: 32)
+            icon.size = NSSize(width: size, height: size)
             return icon
         }
     }
@@ -211,5 +266,43 @@ private struct ResultRow: View {
         image.size = NSSize(width: 32, height: 32)
         imageCache.setObject(image, forKey: path as NSString)
         return image
+    }
+}
+
+/// 浏览态网格单元格：大图标 + 两行名称（Launchpad 风），高度必须与
+/// PanelMetrics.gridCellHeight 一致（8 + 48 + 6 + 26 + 8），否则行高错位出滚动条
+private struct AppGridCell: View {
+    let result: SearchResult
+    let isSelected: Bool
+
+    var body: some View {
+        cell.help(result.appPath ?? result.title)
+    }
+
+    private var cell: some View {
+        VStack(spacing: 6) {
+            Group {
+                if let icon = ResultRow.icon(for: result, size: PanelMetrics.gridIconSize) {
+                    Image(nsImage: icon).resizable().interpolation(.high)
+                } else {
+                    Image(systemName: "app.fill").resizable()
+                }
+            }
+            .frame(width: PanelMetrics.gridIconSize, height: PanelMetrics.gridIconSize)
+
+            Text(result.title)
+                .font(.system(size: 11))
+                .foregroundColor(.primary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(height: 26)
+        }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .frame(height: PanelMetrics.gridCellHeight)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isSelected ? Color.white.opacity(0.16) : Color.clear)
+        )
     }
 }
