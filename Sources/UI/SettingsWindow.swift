@@ -38,9 +38,10 @@ final class SettingsWindowController: NSObject {
     }
 }
 
-/// 设置页 Tab：segmented 切换条 + 每个 Tab 按内容给定窗口高度
+/// 设置页 Tab：自绘切换条 + 每个 Tab 按内容给定窗口高度
 /// （不用 TabView——它在 macOS 上的默认样式与窗口标题栏之间有空带、
-///  tab 条四周留白怪异，实测观感很差）
+///  tab 条四周留白怪异，实测观感很差；segmented Picker 在 macOS 26
+///  上固有宽度不压缩会溢出窗口，也已弃用）
 private enum SettingsTab: Int, CaseIterable, Identifiable {
     case general, hotkeys, commands, clipboard, about
 
@@ -56,15 +57,6 @@ private enum SettingsTab: Int, CaseIterable, Identifiable {
         }
     }
 
-    var systemImage: String {
-        switch self {
-        case .general: return "gearshape"
-        case .hotkeys: return "command"
-        case .commands: return "folder"
-        case .clipboard: return "doc.on.clipboard"
-        case .about: return "info.circle"
-        }
-    }
 }
 
 struct SettingsView: View {
@@ -102,13 +94,33 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker(NSLocalizedString("Settings", comment: "settings tab a11y"), selection: $tab) {
+            // macOS 26 的 segmented Picker 段落固有宽度极大且不随可用宽度压缩
+            // （带图标/纯文字都溢出窗口、两端被裁，实测踩过），改自绘切换条：
+            // 等分宽度 + 选中段着色，任何语言文案都放得下
+            HStack(spacing: 4) {
                 ForEach(SettingsTab.allCases) { item in
-                    Label(item.title, systemImage: item.systemImage).tag(item)
+                    Button {
+                        tab = item
+                    } label: {
+                        Text(item.title)
+                            .font(.callout)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .padding(.vertical, 3)
+                            .frame(maxWidth: .infinity)
+                            .background {
+                                if tab == item {
+                                    Capsule().fill(Color.accentColor)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(tab == item ? Color.white : Color.secondary)
+                    .accessibilityLabel(item.title)
+                    .accessibilityAddTraits(tab == item ? [.isSelected] : [])
                 }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
             .padding(.horizontal, 16)
             .padding(.top, 12)
             .padding(.bottom, 2)
