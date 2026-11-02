@@ -1,8 +1,15 @@
 {
   "name": "open-my-app",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
+    {
+      "version": "1.4.4",
+      "date": "2026-11-02",
+      "changes": [
+        "Fix the Settings tab bar overflowing the window on macOS 26, which clipped the first and last tabs (General / About); the tab strip is now custom-drawn with equal-width segments so it always fits"
+      ]
+    },
     {
       "version": "1.4.3",
       "date": "2026-10-23",
