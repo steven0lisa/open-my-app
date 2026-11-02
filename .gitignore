@@ -74,6 +74,7 @@ Package.resolved
 # 本地笔记 / 插件目录（敏感扫描规则：不入库）
 .v2c/
 .findings/
+.video_agent/
 # 公司/雇主专属敏感词清单（防雇主信息泄露，只存本地）
 scripts/sensitive-local.txt
 

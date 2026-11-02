@@ -9,7 +9,8 @@ cd "$ROOT"
 EXCLUDES=(
     --exclude-dir=.git --exclude-dir=build --exclude-dir=dist
     --exclude-dir=DerivedData --exclude-dir=.build --exclude-dir=.v2c
-    --exclude-dir=.findings --exclude=check-sensitive.sh --exclude=Package.resolved
+    --exclude-dir=.findings --exclude-dir=.video_agent
+    --exclude=check-sensitive.sh --exclude=Package.resolved
 )
 
 fail=0
