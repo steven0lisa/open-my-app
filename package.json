@@ -1,8 +1,16 @@
 {
   "name": "open-my-app",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "OpenMyApp — a Spotlight-style minimalist app launcher for macOS (pinyin search for apps and System Settings)",
   "releaseHistory": [
+    {
+      "version": "1.4.5",
+      "date": "2026-11-12",
+      "changes": [
+        "Fix auto-paste silently degrading to copy-only after a rebuild or when launched from a development build: the login item now always points at the installed copy in /Applications (self-healing on launch), and the Accessibility banner in Settings → Clipboard updates live once the permission is granted",
+        "The \"Grant Accessibility Permission…\" button now registers the running binary with the system before opening Settings, so the correct entry appears in the list to toggle"
+      ]
+    },
     {
       "version": "1.4.4",
       "date": "2026-11-02",
