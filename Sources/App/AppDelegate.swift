@@ -18,15 +18,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // 默认开启登录自启动（一次性引导）：之后一切以设置页开关为准
-        if !Preferences.launchAtLoginAutoConfigured {
-            Preferences.launchAtLoginAutoConfigured = true
-            if SMAppService.mainApp.status != .enabled {
+        // 默认开启登录自启动（一次性引导）：之后一切以设置页开关为准。
+        // 注册/迁移只从 /Applications 的正式安装发起：SMAppService 把登录项钉在
+        // 注册时的二进制路径上，开发构建抢注后开机会启动一个 TCC 未授权的二进制
+        //（adhoc 签名按 CDHash 绑定授权 → 自动粘贴降级仅复制，实测踩过），
+        // 故运行正式安装时检测路径漂移并迁回，Debug 构建永不触碰登录项
+        let currentPath = Bundle.main.bundlePath
+        if currentPath.hasPrefix("/Applications/") {
+            if !Preferences.launchAtLoginAutoConfigured {
+                Preferences.launchAtLoginAutoConfigured = true
+                if SMAppService.mainApp.status != .enabled {
+                    do {
+                        try SMAppService.mainApp.register()
+                        Preferences.loginItemRegisteredPath = currentPath
+                        NSLog("[OpenMyApp] 已默认开启登录自启动")
+                    } catch {
+                        NSLog("[OpenMyApp] 登录自启动注册失败: \(error.localizedDescription)")
+                    }
+                }
+            } else if SMAppService.mainApp.status == .enabled,
+                      Preferences.loginItemRegisteredPath != currentPath {
+                // 登录项指向其它路径（开发构建抢注 / 旧安装位置）→ 迁回正式安装
                 do {
+                    try SMAppService.mainApp.unregister()
                     try SMAppService.mainApp.register()
-                    NSLog("[OpenMyApp] 已默认开启登录自启动")
+                    Preferences.loginItemRegisteredPath = currentPath
+                    NSLog("[OpenMyApp] 登录项已迁移到正式安装路径")
                 } catch {
-                    NSLog("[OpenMyApp] 登录自启动注册失败: \(error.localizedDescription)")
+                    NSLog("[OpenMyApp] 登录项迁移失败: \(error.localizedDescription)")
                 }
             }
         }

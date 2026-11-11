@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import Combine
 import SwiftUI
 import ServiceManagement
 import ApplicationServices
@@ -137,6 +138,14 @@ struct SettingsView: View {
         }
         .frame(width: 520, height: contentHeight, alignment: .top)
         .onAppear { clipboardAXTrusted = AXIsProcessTrusted() }
+        // 授权状态实时刷新：用户去系统设置授权后切回本应用立即翻转横幅，
+        // 切到 Clipboard 标签时也重查（旧实现只在窗口首建时读一次，授权后一直显示"没权限"）
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            clipboardAXTrusted = AXIsProcessTrusted()
+        }
+        .onChange(of: tab) { _, newTab in
+            if newTab == .clipboard { clipboardAXTrusted = AXIsProcessTrusted() }
+        }
         .onAppear {
             // 应用目录在后台扫一次（含 bundle 中文名提取，主线程扫会卡顿一下）
             guard installedApps.isEmpty else { return }
@@ -266,6 +275,10 @@ struct SettingsView: View {
                     )
                     .foregroundStyle(.secondary)
                     Button(NSLocalizedString("Grant Accessibility Permission…", comment: "clipboard permission")) {
+                        // 先触发系统授权请求：把当前二进制登记进辅助功能列表（否则列表里可能是旧构建的条目），
+                        // 再打开设置页对应面板
+                        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+                        _ = AXIsProcessTrustedWithOptions(options)
                         SystemSettingsCatalog.open(anchor: "com.apple.settings.privacy?Privacy_Accessibility")
                     }
                 }
@@ -394,6 +407,8 @@ struct SettingsView: View {
         do {
             if enabled {
                 try SMAppService.mainApp.register()
+                // 记录注册时的二进制路径，供启动时检测路径漂移（开发构建抢注）并迁回
+                Preferences.loginItemRegisteredPath = Bundle.main.bundlePath
             } else {
                 try SMAppService.mainApp.unregister()
             }

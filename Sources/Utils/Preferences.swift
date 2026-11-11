@@ -14,6 +14,7 @@ enum Preferences {
     private static let clipboardRetentionDaysKey = "clipboardRetentionDays"
     private static let clipboardKeepUsageCountKey = "clipboardKeepUsageCount"
     private static let launchAtLoginAutoConfiguredKey = "launchAtLoginAutoConfigured"
+    private static let loginItemRegisteredPathKey = "loginItemRegisteredPath"
     private static let customAppCommandsKey = "customAppCommands"
 
     // 使用频次缓存在内存：UserDefaults.dictionary(forKey:) 每次调用都会重新
@@ -86,6 +87,14 @@ enum Preferences {
     static var launchAtLoginAutoConfigured: Bool {
         get { UserDefaults.standard.bool(forKey: launchAtLoginAutoConfiguredKey) }
         set { UserDefaults.standard.set(newValue, forKey: launchAtLoginAutoConfiguredKey) }
+    }
+
+    /// 登录项注册时记录的二进制路径。SMAppService 把「运行哪个 app」钉在注册时的路径上，
+    /// 路径漂移（开发构建抢注 / 旧安装位置）后开机会启动一个 TCC 未授权的二进制，
+    /// 启动时据此检测漂移并迁移到当前正式安装（见 AppDelegate 登录自启动段）
+    static var loginItemRegisteredPath: String {
+        get { UserDefaults.standard.string(forKey: loginItemRegisteredPathKey) ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: loginItemRegisteredPathKey) }
     }
 
     static func usageCount(for id: String) -> Int {
